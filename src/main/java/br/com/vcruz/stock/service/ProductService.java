@@ -51,6 +51,12 @@ public class ProductService {
         return this.productDal.findBy(featureMap, quantity, page);
     }
 
+    public Product findByCode(String code) {
+        log.info("Procurando o produto pelo código {}.", code);
+
+        return this.productDal.findByCode(code);
+    }
+
     public void deleteById(Long id) {
         log.info("[delete] - apagando produto {}.", id);
 

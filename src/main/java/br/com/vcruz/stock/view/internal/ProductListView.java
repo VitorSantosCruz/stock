@@ -4,6 +4,7 @@ import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.model.Product;
 import br.com.vcruz.stock.service.ProductService;
 import br.com.vcruz.stock.utils.PageableUtils;
+import br.com.vcruz.stock.view.DashboardView;
 import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +20,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
 
     private final ProductService productService;
     private final int ID_COLUMN_POSITION;
+    private final int CODE_COLUMN_POSITION;
     private int currentPage;
     private boolean isLookingFor;
     private int selectedRow;
@@ -28,6 +30,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
      */
     public ProductListView() {
         this.ID_COLUMN_POSITION = 0;
+        this.CODE_COLUMN_POSITION = 1;
         this.productService = new ProductService();
         this.selectedRow = -1;
 
@@ -142,6 +145,16 @@ public class ProductListView extends javax.swing.JInternalFrame {
         defaultTableModel.setRowCount(0);
     }
 
+    private void edit() {
+        try {
+            String code = (String) this.productTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
+            Product product = this.productService.findByCode(code);
+            DashboardView.openInternalFrame(new ProductRegisterView(product, true));
+        } catch (InternalException e) {
+            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -165,6 +178,8 @@ public class ProductListView extends javax.swing.JInternalFrame {
         productTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
         pageComboBox = new javax.swing.JComboBox<>();
+        editAndDeletePanel = new javax.swing.JPanel();
+        editButton = new javax.swing.JButton();
         deleteButton = new javax.swing.JButton();
 
         setClosable(true);
@@ -314,7 +329,24 @@ public class ProductListView extends javax.swing.JInternalFrame {
         });
         utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
 
+        editAndDeletePanel.setLayout(new java.awt.GridLayout(1, 0));
+
+        editButton.setText("Editar");
+        editButton.setEnabled(false);
+        editButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                editButtonActionPerformed(evt);
+            }
+        });
+        editButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                editButtonKeyPressed(evt);
+            }
+        });
+        editAndDeletePanel.add(editButton);
+
         deleteButton.setText("Apagar");
+        deleteButton.setEnabled(false);
         deleteButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 deleteButtonActionPerformed(evt);
@@ -325,7 +357,9 @@ public class ProductListView extends javax.swing.JInternalFrame {
                 deleteButtonKeyPressed(evt);
             }
         });
-        utilsPanel.add(deleteButton, java.awt.BorderLayout.PAGE_END);
+        editAndDeletePanel.add(deleteButton);
+
+        utilsPanel.add(editAndDeletePanel, java.awt.BorderLayout.PAGE_END);
 
         getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
@@ -379,6 +413,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
     private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
         this.selectedRow = -1;
         this.deleteButton.setEnabled(false);
+        this.editButton.setEnabled(false);
 
         if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
@@ -391,11 +426,23 @@ public class ProductListView extends javax.swing.JInternalFrame {
             this.productTable.clearSelection();
             this.selectedRow = -1;
             this.deleteButton.setEnabled(false);
+            this.editButton.setEnabled(false);
         } else {
             this.selectedRow = this.productTable.getSelectedRow();
             this.deleteButton.setEnabled(true);
+            this.editButton.setEnabled(true);
         }
     }//GEN-LAST:event_productTableMouseReleased
+
+    private void editButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.edit();
+        }
+    }//GEN-LAST:event_editButtonKeyPressed
+
+    private void editButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editButtonActionPerformed
+        this.edit();
+    }//GEN-LAST:event_editButtonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -404,6 +451,8 @@ public class ProductListView extends javax.swing.JInternalFrame {
     private javax.swing.JLabel codeLabel;
     private javax.swing.JTextField codeTextField;
     private javax.swing.JButton deleteButton;
+    private javax.swing.JPanel editAndDeletePanel;
+    private javax.swing.JButton editButton;
     private javax.swing.JLabel modelLabel;
     private javax.swing.JTextField modelTextField;
     private javax.swing.JLabel nameLabel;

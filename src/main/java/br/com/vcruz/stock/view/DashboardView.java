@@ -15,7 +15,7 @@ import javax.swing.JOptionPane;
 public class DashboardView extends javax.swing.JFrame {
 
     public static User loggedUser;
-    private JInternalFrame currentlyOpenWindow;
+    private static JInternalFrame currentlyOpenWindow;
 
     /**
      * Creates new form Dashboard
@@ -46,14 +46,14 @@ public class DashboardView extends javax.swing.JFrame {
         }
     }
 
-    private void openInternalFrame(JInternalFrame frame) {
-        this.rootWindowjDesktopPane.removeAll();
-        if (this.currentlyOpenWindow != null) {
-            this.currentlyOpenWindow.dispose();
+    public static void openInternalFrame(JInternalFrame frame) {
+        DashboardView.rootWindowjDesktopPane.removeAll();
+        if (DashboardView.currentlyOpenWindow != null) {
+            DashboardView.currentlyOpenWindow.dispose();
         }
-        this.currentlyOpenWindow = frame;
-        this.currentlyOpenWindow.setVisible(true);
-        this.rootWindowjDesktopPane.add(this.currentlyOpenWindow);
+        DashboardView.currentlyOpenWindow = frame;
+        DashboardView.currentlyOpenWindow.setVisible(true);
+        DashboardView.rootWindowjDesktopPane.add(DashboardView.currentlyOpenWindow);
     }
 
     /**
@@ -162,23 +162,23 @@ public class DashboardView extends javax.swing.JFrame {
     }//GEN-LAST:event_exitMenuMouseClicked
 
     private void userRegisterMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_userRegisterMenuItemActionPerformed
-        this.openInternalFrame(new UserRegisterView(false));
+        DashboardView.openInternalFrame(new UserRegisterView(false));
     }//GEN-LAST:event_userRegisterMenuItemActionPerformed
 
     private void userListMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_userListMenuItemActionPerformed
-        this.openInternalFrame(new UserListView());
+        DashboardView.openInternalFrame(new UserListView());
     }//GEN-LAST:event_userListMenuItemActionPerformed
 
     private void userProfileMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_userProfileMenuItemActionPerformed
-        this.openInternalFrame(new UserRegisterView(true));
+        DashboardView.openInternalFrame(new UserRegisterView(true));
     }//GEN-LAST:event_userProfileMenuItemActionPerformed
 
     private void productRegisterMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productRegisterMenuItemActionPerformed
-        this.openInternalFrame(new ProductRegisterView());
+        DashboardView.openInternalFrame(new ProductRegisterView());
     }//GEN-LAST:event_productRegisterMenuItemActionPerformed
 
     private void productListMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productListMenuItemActionPerformed
-        this.openInternalFrame(new ProductListView());
+        DashboardView.openInternalFrame(new ProductListView());
     }//GEN-LAST:event_productListMenuItemActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -188,7 +188,7 @@ public class DashboardView extends javax.swing.JFrame {
     private javax.swing.JMenuItem productListMenuItem;
     private javax.swing.JMenu productMenu;
     private javax.swing.JMenuItem productRegisterMenuItem;
-    private javax.swing.JDesktopPane rootWindowjDesktopPane;
+    private static javax.swing.JDesktopPane rootWindowjDesktopPane;
     private javax.swing.JMenuItem userListMenuItem;
     private javax.swing.JMenu userMenu;
     private javax.swing.JMenuItem userProfileMenuItem;

@@ -65,7 +65,7 @@ public class ProductDalImp implements ProductDal {
             preparedStatement.setString(4, brand);
             preparedStatement.setBigDecimal(5, price);
             preparedStatement.setLong(6, createdBy);
-            preparedStatement.setLong(6, id);
+            preparedStatement.setLong(7, id);
 
             preparedStatement.executeUpdate();
 
