@@ -2,8 +2,7 @@ package br.com.vcruz.stock.view.internal;
 
 import br.com.vcruz.stock.exception.DuplicateException;
 import br.com.vcruz.stock.exception.InternalException;
-import br.com.vcruz.stock.exception.LoginException;
-import br.com.vcruz.stock.exception.PasswordException;
+import br.com.vcruz.stock.exception.ValidationException;
 import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.service.UserService;
 import br.com.vcruz.stock.view.DashboardView;
@@ -48,9 +47,9 @@ public class UserRegisterView extends javax.swing.JInternalFrame {
 
         try {
             Map<String, String> JOptionPaneData = this.saveWithProperForm(name, login, password, passwordConfirmation, isRoot);
-
+            this.resetForm();
             JOptionPane.showMessageDialog(this, JOptionPaneData.get("message"), JOptionPaneData.get("title"), JOptionPane.INFORMATION_MESSAGE);
-        } catch (LoginException | DuplicateException | PasswordException | InternalException e) {
+        } catch (ValidationException | DuplicateException | InternalException e) {
             String error = e.getMessage();
 
             if (e instanceof InternalException) {
@@ -76,16 +75,14 @@ public class UserRegisterView extends javax.swing.JInternalFrame {
             this.fillUderData(DashboardView.loggedUser);
         }
 
-        this.resetForm();
-
         return Map.of("title", titleOfJOptionPane, "message", messageOfJOptionPane);
     }
 
     private User saveEditedUser(String name, String login, String password, String passwordConfirmation, boolean isRoot) {
         if (this.changePasswordCheckBox.isSelected()) {
-            return this.userService.save(DashboardView.loggedUser.getId(), name, login, password, passwordConfirmation, isRoot);
+            return this.userService.update(DashboardView.loggedUser.getId(), name, login, password, passwordConfirmation, isRoot);
         } else {
-            return this.userService.save(DashboardView.loggedUser.getId(), name, login, isRoot);
+            return this.userService.update(DashboardView.loggedUser.getId(), name, login, isRoot);
         }
     }
 

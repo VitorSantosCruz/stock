@@ -27,5 +27,20 @@ create table if not exists user(
     is_deleted boolean default false
 );
 
+-- Criar tabela "product"
+create table if not exists product(
+    created_date datetime not null default current_timestamp,
+    last_modified_date datetime,
+    id bigint primary key auto_increment,
+    product_code varchar(255) not null unique,
+    name varchar(255) not null,
+    model varchar(255) not null,
+    brand varchar(255) not null,
+    price decimal(9,2) not null,
+    is_deleted boolean default false,
+    created_by bigint not null,
+    foreign key (created_by) references user(id)
+);
+
 -- Insere dados na tabela "user"
 insert into user (id, name, login, password, is_root) values (1, "Administraor", "admin", "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec", true);

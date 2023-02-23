@@ -1,6 +1,7 @@
 package br.com.vcruz.stock.view;
 
 import br.com.vcruz.stock.model.User;
+import br.com.vcruz.stock.view.internal.ProductRegisterView;
 import br.com.vcruz.stock.view.internal.UserListView;
 import br.com.vcruz.stock.view.internal.UserRegisterView;
 import javax.swing.JInternalFrame;
@@ -65,6 +66,9 @@ public class DashboardView extends javax.swing.JFrame {
         jMenuItem1 = new javax.swing.JMenuItem();
         rootWindowjDesktopPane = new javax.swing.JDesktopPane();
         jMenuBar1 = new javax.swing.JMenuBar();
+        productMenu = new javax.swing.JMenu();
+        productRegisterMenuItem = new javax.swing.JMenuItem();
+        productListMenuItem = new javax.swing.JMenuItem();
         userMenu = new javax.swing.JMenu();
         userRegisterMenuItem = new javax.swing.JMenuItem();
         userListMenuItem = new javax.swing.JMenuItem();
@@ -83,6 +87,21 @@ public class DashboardView extends javax.swing.JFrame {
 
         rootWindowjDesktopPane.setLayout(new java.awt.GridLayout(1, 0));
         getContentPane().add(rootWindowjDesktopPane, java.awt.BorderLayout.CENTER);
+
+        productMenu.setText("Produto");
+
+        productRegisterMenuItem.setText("Cadastro");
+        productRegisterMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productRegisterMenuItemActionPerformed(evt);
+            }
+        });
+        productMenu.add(productRegisterMenuItem);
+
+        productListMenuItem.setText("Listagem");
+        productMenu.add(productListMenuItem);
+
+        jMenuBar1.add(productMenu);
 
         userMenu.setText("Usuário");
 
@@ -148,10 +167,17 @@ public class DashboardView extends javax.swing.JFrame {
         this.openInternalFrame(new UserRegisterView(true));
     }//GEN-LAST:event_userProfileMenuItemActionPerformed
 
+    private void productRegisterMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productRegisterMenuItemActionPerformed
+        this.openInternalFrame(new ProductRegisterView());
+    }//GEN-LAST:event_productRegisterMenuItemActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu exitMenu;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuItem jMenuItem1;
+    private javax.swing.JMenuItem productListMenuItem;
+    private javax.swing.JMenu productMenu;
+    private javax.swing.JMenuItem productRegisterMenuItem;
     private javax.swing.JDesktopPane rootWindowjDesktopPane;
     private javax.swing.JMenuItem userListMenuItem;
     private javax.swing.JMenu userMenu;
