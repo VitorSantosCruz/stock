@@ -2,10 +2,12 @@ package br.com.vcruz.stock.dal.implementation;
 
 import br.com.vcruz.stock.configuration.ConnectionConfig;
 import br.com.vcruz.stock.dal.UserDal;
+import br.com.vcruz.stock.exception.DuplicateException;
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.utils.DateConverterUtils;
+import br.com.vcruz.stock.utils.PageableUtils;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,6 +15,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -23,17 +27,137 @@ import lombok.extern.log4j.Log4j2;
 public class UserDalImp implements UserDal {
 
     @Override
-    public User findByLogin(String login) {
-        try {
-            String query = "select * from user where binary login = ? and is_deleted = false ";
+    public User save(String name, String login, String password, boolean isRoot) {
+        String query = "insert into user (name, login, password, is_root) values (?, ?, ?, ?)";
 
-            Connection connection = ConnectionConfig.getConnection();
-            PreparedStatement preparedStatement = connection.prepareStatement(query);
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, login);
+            preparedStatement.setString(3, password);
+            preparedStatement.setBoolean(4, isRoot);
+
+            preparedStatement.executeLargeUpdate();
+
+            return this.findByLogin(login);
+        } catch (IOException | SQLException e) {
+            log.error("[save] - {}", e.getMessage());
+
+            if (e.getMessage().contains("Duplicate")) {
+                throw new DuplicateException("O login escolhido não está disponível, tente outro.");
+            }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public User save(Long id, String name, String login, boolean isRoot) {
+        String query = "update user set name = ?, login = ?, is_root = ? where id = ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, login);
+            preparedStatement.setBoolean(3, isRoot);
+            preparedStatement.setLong(4, id);
+
+            preparedStatement.executeLargeUpdate();
+
+            return this.findByLogin(login);
+        } catch (IOException | SQLException e) {
+            log.error("[save] - {}", e.getMessage());
+
+            if (e.getMessage().contains("Duplicate")) {
+                throw new DuplicateException("O login escolhido não está disponível, tente outro.");
+            }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public User save(Long id, String name, String login, String password, boolean isRoot) {
+        String query = "update user set name = ?, login = ?, password = ?, is_root = ? where id = ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, login);
+            preparedStatement.setString(3, password);
+            preparedStatement.setBoolean(4, isRoot);
+            preparedStatement.setLong(5, id);
+
+            preparedStatement.executeLargeUpdate();
+
+            return this.findByLogin(login);
+        } catch (IOException | SQLException e) {
+            log.error("[save] - {}", e.getMessage());
+
+            if (e.getMessage().contains("Duplicate")) {
+                throw new DuplicateException("O login escolhido não está disponível, tente outro.");
+            }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<User> findAll() {
+        return this.findAll(PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
+    }
+
+    @Override
+    public List<User> findAll(int quantity, int page) {
+        String query = "select * from user where is_deleted = false limit ? offset ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, quantity);
+            preparedStatement.setInt(2, (page * quantity));
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findAll] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<User> findBy(String feature) {
+        return this.findBy(feature, PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
+    }
+
+    @Override
+    public List<User> findBy(String feature, int quantity, int page) {
+        String query = "select * from user where (id = ? or name like ? or login like ?) and is_deleted = false  limit ? offset ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, "%" + feature + "%");
+            preparedStatement.setString(2, "%" + feature + "%");
+            preparedStatement.setString(3, "%" + feature + "%");
+            preparedStatement.setInt(4, quantity);
+            preparedStatement.setInt(5, (page * quantity));
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findBy] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public User findByLogin(String login) {
+        String query = "select * from user where binary login = ? and is_deleted = false ";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, login);
 
-            User user = this.getResult(preparedStatement);
+            List<User> userList = this.getResult(preparedStatement);
 
-            return user;
+            if (userList.isEmpty()) {
+                String errorMessage = "Esse usuário não existe!";
+                throw new NotFoundException(errorMessage);
+            }
+
+            return userList.get(0);
         } catch (NotFoundException | IOException | SQLException e) {
             log.error("[findByLogin] - {}", e.getMessage());
 
@@ -45,9 +169,59 @@ public class UserDalImp implements UserDal {
         }
     }
 
-    private User getResult(PreparedStatement preparedStatement) throws NotFoundException, SQLException {
+    @Override
+    public void delete(User user) {
+        deleteById(user.getId());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String query = "update user set is_deleted = true where id = ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setLong(1, id);
+
+            preparedStatement.executeLargeUpdate();
+        } catch (IOException | SQLException e) {
+            log.error("[deleteById] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int pageQuantity(int quantity) {
+        return this.pageQuantity(quantity, "");
+    }
+
+    @Override
+    public int pageQuantity(int quantity, String feature) {
+        String query = "select ceiling(count(*) / ?) as pageQuantity from user where (id = ? or name like ? or login like ?) and is_deleted = false;";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, quantity);
+            preparedStatement.setString(2, "%" + feature + "%");
+            preparedStatement.setString(3, "%" + feature + "%");
+            preparedStatement.setString(4, "%" + feature + "%");
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt("pageQuantity");
+            } catch (SQLException e) {
+                throw e;
+            }
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[pageQuantity] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    private List<User> getResult(PreparedStatement preparedStatement) throws NotFoundException, SQLException {
+        List<User> users = new ArrayList<>();
+
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            if (resultSet.next()) {
+            while (resultSet.next()) {
                 LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("created_Date"));
                 LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("last_modified_date"));
                 Long id = resultSet.getLong("id");
@@ -60,7 +234,7 @@ public class UserDalImp implements UserDal {
                 LocalTime blockedUntil = localDateTimeBlockedUntil == null ? null : localDateTimeBlockedUntil.toLocalTime();
                 boolean isDeleted = resultSet.getBoolean("is_deleted");
 
-                return User.builder()
+                User user = User.builder()
                         .createdDate(createdDate)
                         .lastModifiedDate(lastModifiedDate)
                         .id(id)
@@ -72,11 +246,11 @@ public class UserDalImp implements UserDal {
                         .blockedUntil(blockedUntil)
                         .isDeleted(isDeleted)
                         .build();
-            } else {
-                String errorMessage = "Esse usuário não existe!";
-                throw new NotFoundException(errorMessage);
+                users.add(user);
             }
-        } catch (NotFoundException | SQLException e) {
+
+            return users;
+        } catch (SQLException e) {
             throw e;
         }
     }

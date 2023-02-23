@@ -2,7 +2,7 @@ package br.com.vcruz.stock;
 
 import br.com.vcruz.stock.configuration.LiquibaseLoaderConfig;
 import br.com.vcruz.stock.exception.InternalException;
-import br.com.vcruz.stock.view.LoginPage;
+import br.com.vcruz.stock.view.LoginView;
 import javax.swing.JOptionPane;
 import lombok.extern.log4j.Log4j2;
 
@@ -30,7 +30,7 @@ public class Stock {
         }
         
         java.awt.EventQueue.invokeLater(() -> {
-            new LoginPage().setVisible(true);
+            new LoginView().setVisible(true);
         });
     }
 }

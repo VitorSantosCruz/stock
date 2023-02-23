@@ -1,6 +1,7 @@
 package br.com.vcruz.stock.view;
 
 import br.com.vcruz.stock.exception.InternalException;
+import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.service.LoginService;
 import java.awt.event.KeyEvent;
 import javax.swing.JOptionPane;
@@ -9,14 +10,14 @@ import javax.swing.JOptionPane;
  *
  * @author vcruz
  */
-public class LoginPage extends javax.swing.JFrame {
+public class LoginView extends javax.swing.JFrame {
 
     private final LoginService loginService;
 
     /**
      * Creates new form LoginPage
      */
-    public LoginPage() {
+    public LoginView() {
         this.loginService = new LoginService();
 
         initComponents();
@@ -27,7 +28,9 @@ public class LoginPage extends javax.swing.JFrame {
         String password = String.valueOf(this.passwordPasswordField.getPassword());
 
         try {
-            this.loginService.login(login, password);
+            User user = this.loginService.login(login, password);
+            this.dispose();
+            new DashboardView(user).setVisible(true);
         } catch (Exception e) {
             String error = e.getMessage();
 
@@ -54,6 +57,7 @@ public class LoginPage extends javax.swing.JFrame {
         loginButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Stock - Login");
 
         loginLabel.setText("Usuário");
 
