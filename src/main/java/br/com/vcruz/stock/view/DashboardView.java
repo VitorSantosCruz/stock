@@ -1,6 +1,7 @@
 package br.com.vcruz.stock.view;
 
 import br.com.vcruz.stock.model.User;
+import br.com.vcruz.stock.view.internal.ProductListView;
 import br.com.vcruz.stock.view.internal.ProductRegisterView;
 import br.com.vcruz.stock.view.internal.UserListView;
 import br.com.vcruz.stock.view.internal.UserRegisterView;
@@ -99,6 +100,11 @@ public class DashboardView extends javax.swing.JFrame {
         productMenu.add(productRegisterMenuItem);
 
         productListMenuItem.setText("Listagem");
+        productListMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productListMenuItemActionPerformed(evt);
+            }
+        });
         productMenu.add(productListMenuItem);
 
         jMenuBar1.add(productMenu);
@@ -170,6 +176,10 @@ public class DashboardView extends javax.swing.JFrame {
     private void productRegisterMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productRegisterMenuItemActionPerformed
         this.openInternalFrame(new ProductRegisterView());
     }//GEN-LAST:event_productRegisterMenuItemActionPerformed
+
+    private void productListMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productListMenuItemActionPerformed
+        this.openInternalFrame(new ProductListView());
+    }//GEN-LAST:event_productListMenuItemActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu exitMenu;

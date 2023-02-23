@@ -56,7 +56,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public Product update(Long id, String code, String name, String model, String brand, BigDecimal price, Long createdBy) {
-        String query = "update product set product_code = ?, name = ?, model = ?, brand = ?, price = ?, created_by = ? where id = ?";
+        String query = "update product set last_modified_date = now(), product_code = ?, name = ?, model = ?, brand = ?, price = ?, created_by = ? where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, code);
@@ -83,7 +83,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findAll(int quantity, int page) {
-        String query = "select * from product p join user u where p.is_deleted = false limit ? offset ?";
+        String query = "select * from product p join user u where p.is_deleted = false group by p.id order by p.id asc limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, quantity);
@@ -99,39 +99,29 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findBy(Map<String, String> featureMap, int quantity, int page) {
-        StringBuilder query = new StringBuilder("select * from product p join user u where (");
+        String query = "select * from product p join user u where (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
-            query.append(key.equals("code") ? "p.product_code" : "p." + key);
-
-            if (key.equals("code")) {
-                query.append(" = ?");
-            } else {
-                query.append(" like ?");
-            }
+            query += "p." + key + " like ?";
 
             if (i + 1 < featureMap.keySet().size()) {
-                query.append(" or");
+                query += " and ";
             }
         }
 
-        query.append(") and p.is_deleted = false  limit ? offset ?");
+        query += ") and p.is_deleted = false group by p.id order by p.id asc limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query.toString())) {
-            for (int i = 0; i < featureMap.values().size(); i++) {
-                String key = (String) featureMap.keySet().toArray()[i];
-                String value = (String) featureMap.values().toArray()[i];
+            int i = 0;
 
-                if (key.equals("code")) {
-                    preparedStatement.setString(i + 1, value);
-                } else {
-                    preparedStatement.setString(i + 1, "%" + value + "%");
-                }
+            for (String value : featureMap.values()) {
+                i++;
+                preparedStatement.setString(i, "%" + value + "%");
             }
 
-            preparedStatement.setInt(4, quantity);
-            preparedStatement.setInt(5, (page * quantity));
+            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, (page * quantity));
 
             return this.getResult(preparedStatement);
         } catch (NotFoundException | IOException | SQLException e) {
@@ -143,7 +133,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public Product findByCode(String code) {
-        String query = "select * from product p join user u where p.product_code = ? and p.is_deleted = false";
+        String query = "select * from product p join user u where p.product_code = ? and p.is_deleted = false group by p.id order by p.id asc";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, code);
@@ -169,7 +159,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public void deleteById(Long id) {
-        String query = "update product set is_deleted = true where id = ?";
+        String query = "update product set last_modified_date = now(), is_deleted = true where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
@@ -184,36 +174,26 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public int pageQuantity(int quantity, Map<String, String> featureMap) {
-        StringBuilder query = new StringBuilder("select ceiling(count(*) / ?) as pageQuantity from products where (");
+        String query = "select ceiling(count(*) / ?) as pageQuantity from product where (";
+
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
-            query.append(key);
-
-            if (key.equals("code")) {
-                query.append(" = ?");
-            } else {
-                query.append(" like ?");
-            }
+            query += key + " like ?";
 
             if (i + 1 < featureMap.keySet().size()) {
-                query.append(" or");
+                query += " and ";
             }
         }
 
-        query.append(") and is_deleted = false");
+        query += ") and is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query.toString())) {
             preparedStatement.setInt(1, quantity);
 
             for (int i = 0; i < featureMap.values().size(); i++) {
-                String key = (String) featureMap.keySet().toArray()[i];
                 String value = (String) featureMap.values().toArray()[i];
 
-                if (key.equals("code")) {
-                    preparedStatement.setString(i + 1, value);
-                } else {
-                    preparedStatement.setString(i + 1, "%" + value + "%");
-                }
+                preparedStatement.setString(i + 2, "%" + value + "%");
             }
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {

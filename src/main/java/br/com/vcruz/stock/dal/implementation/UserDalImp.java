@@ -51,7 +51,7 @@ public class UserDalImp implements UserDal {
 
     @Override
     public User update(Long id, String name, String login, boolean isRoot) {
-        String query = "update user set name = ?, login = ?, is_root = ? where id = ?";
+        String query = "update user set last_modified_date = now(), name = ?, login = ?, is_root = ? where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, name);
@@ -75,7 +75,7 @@ public class UserDalImp implements UserDal {
 
     @Override
     public User update(Long id, String name, String login, String password, boolean isRoot) {
-        String query = "update user set name = ?, login = ?, password = ?, is_root = ? where id = ?";
+        String query = "update user set last_modified_date = now(), name = ?, login = ?, password = ?, is_root = ? where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, name);
@@ -160,7 +160,7 @@ public class UserDalImp implements UserDal {
 
     @Override
     public void deleteById(Long id) {
-        String query = "update user set is_deleted = true where id = ?";
+        String query = "update user set last_modified_date = now(), is_deleted = true where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);

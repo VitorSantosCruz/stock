@@ -46,14 +46,14 @@ public class UserService {
     }
 
     public User update(Long id, String name, String login, String password, String passwordConfirmation, boolean isRoot) {
-        log.info("[update] - Editando o usuário: {}", id);
+        log.info("[update] - Editando o usuário e alterando a senha: {}", id);
 
         this.userValidation(name, login, password, passwordConfirmation);
 
         try {
             return this.userDal.update(id, name, login, PasswordUtils.encryptPassword(password), isRoot);
         } catch (NoSuchAlgorithmException e) {
-            log.error("[save] - {}", e.getMessage());
+            log.error("[update] - {}", e.getMessage());
 
             throw new InternalException("[Erro interno] - Não foi possível cadastrar o usuário!");
         }
