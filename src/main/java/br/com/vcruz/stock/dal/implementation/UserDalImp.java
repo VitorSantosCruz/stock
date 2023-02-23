@@ -7,7 +7,6 @@ import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.utils.DateConverterUtils;
-import br.com.vcruz.stock.utils.PageableUtils;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -36,7 +35,7 @@ public class UserDalImp implements UserDal {
             preparedStatement.setString(3, password);
             preparedStatement.setBoolean(4, isRoot);
 
-            preparedStatement.executeLargeUpdate();
+            preparedStatement.executeUpdate();
 
             return this.findByLogin(login);
         } catch (IOException | SQLException e) {
@@ -51,8 +50,8 @@ public class UserDalImp implements UserDal {
     }
 
     @Override
-    public User save(Long id, String name, String login, boolean isRoot) {
-        String query = "update user set name = ?, login = ?, is_root = ? where id = ?";
+    public User update(Long id, String name, String login, boolean isRoot) {
+        String query = "update user set last_modified_date = now(), name = ?, login = ?, is_root = ? where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, name);
@@ -60,11 +59,11 @@ public class UserDalImp implements UserDal {
             preparedStatement.setBoolean(3, isRoot);
             preparedStatement.setLong(4, id);
 
-            preparedStatement.executeLargeUpdate();
+            preparedStatement.executeUpdate();
 
             return this.findByLogin(login);
         } catch (IOException | SQLException e) {
-            log.error("[save] - {}", e.getMessage());
+            log.error("[update] - {}", e.getMessage());
 
             if (e.getMessage().contains("Duplicate")) {
                 throw new DuplicateException("O login escolhido não está disponível, tente outro.");
@@ -75,8 +74,8 @@ public class UserDalImp implements UserDal {
     }
 
     @Override
-    public User save(Long id, String name, String login, String password, boolean isRoot) {
-        String query = "update user set name = ?, login = ?, password = ?, is_root = ? where id = ?";
+    public User update(Long id, String name, String login, String password, boolean isRoot) {
+        String query = "update user set last_modified_date = now(), name = ?, login = ?, password = ?, is_root = ? where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, name);
@@ -85,11 +84,11 @@ public class UserDalImp implements UserDal {
             preparedStatement.setBoolean(4, isRoot);
             preparedStatement.setLong(5, id);
 
-            preparedStatement.executeLargeUpdate();
+            preparedStatement.executeUpdate();
 
             return this.findByLogin(login);
         } catch (IOException | SQLException e) {
-            log.error("[save] - {}", e.getMessage());
+            log.error("[update] - {}", e.getMessage());
 
             if (e.getMessage().contains("Duplicate")) {
                 throw new DuplicateException("O login escolhido não está disponível, tente outro.");
@@ -97,11 +96,6 @@ public class UserDalImp implements UserDal {
 
             throw new InternalException(e.getMessage());
         }
-    }
-
-    @Override
-    public List<User> findAll() {
-        return this.findAll(PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
     }
 
     @Override
@@ -117,11 +111,6 @@ public class UserDalImp implements UserDal {
 
             throw new InternalException(e.getMessage());
         }
-    }
-
-    @Override
-    public List<User> findBy(String feature) {
-        return this.findBy(feature, PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
     }
 
     @Override
@@ -145,7 +134,7 @@ public class UserDalImp implements UserDal {
 
     @Override
     public User findByLogin(String login) {
-        String query = "select * from user where binary login = ? and is_deleted = false ";
+        String query = "select * from user where binary login = ? and is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, login);
@@ -170,28 +159,18 @@ public class UserDalImp implements UserDal {
     }
 
     @Override
-    public void delete(User user) {
-        deleteById(user.getId());
-    }
-
-    @Override
     public void deleteById(Long id) {
-        String query = "update user set is_deleted = true where id = ?";
+        String query = "update user set last_modified_date = now(), is_deleted = true where id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
 
-            preparedStatement.executeLargeUpdate();
+            preparedStatement.executeUpdate();
         } catch (IOException | SQLException e) {
             log.error("[deleteById] - {}", e.getMessage());
 
             throw new InternalException(e.getMessage());
         }
-    }
-
-    @Override
-    public int pageQuantity(int quantity) {
-        return this.pageQuantity(quantity, "");
     }
 
     @Override

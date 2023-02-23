@@ -16,7 +16,6 @@ import javax.swing.table.DefaultTableModel;
 public class UserListView extends javax.swing.JInternalFrame {
 
     private final UserService userService;
-    private final int MAX_QUANTITY_OF_ITENS_IN_THE_PAGE;
     private final int ID_COLUMN_POSITION;
     private int currentPage;
     private boolean isLookingFor;
@@ -26,14 +25,13 @@ public class UserListView extends javax.swing.JInternalFrame {
      * Creates new form UserListView
      */
     public UserListView() {
-        this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE = 50;
         this.ID_COLUMN_POSITION = 0;
         this.userService = new UserService();
         this.selectedRow = -1;
 
         initComponents();
 
-        int pageQuantity = this.userService.pageQuantity(this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        int pageQuantity = this.userService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         this.fillCombobok(pageQuantity);
     }
 
@@ -51,16 +49,41 @@ public class UserListView extends javax.swing.JInternalFrame {
 
         if (feature.isBlank()) {
             this.isLookingFor = false;
-            pageQuantity = this.userService.pageQuantity(this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+            pageQuantity = this.userService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         } else {
             this.isLookingFor = true;
-            pageQuantity = this.userService.pageQuantity(this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, feature);
+            pageQuantity = this.userService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, feature);
         }
 
         this.fillCombobok(pageQuantity);
 
         if (isLookingFor) {
-            this.loadUserList(this.userService.findBy(feature, this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            this.loadUserList(this.userService.findBy(feature, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+        }
+    }
+
+    private void delete() {
+        Object[] options = {"Sim", "Não"};
+        int delete = JOptionPane.showOptionDialog(this, "Tem certeza que deseja apagar esse usuário?", "Apagar", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+
+        if (JOptionPane.YES_OPTION == delete) {
+            if (this.selectedRow >= 0) {
+                Long id = (Long) this.userTable.getValueAt(this.selectedRow, this.ID_COLUMN_POSITION);
+
+                try {
+                    this.userService.deleteById(id);
+                    int pageQuantity = this.userService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+
+                    if (pageQuantity == 0) {
+                        this.loadUserList(this.userService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+                    }
+
+                    this.fillCombobok(pageQuantity);
+                    JOptionPane.showMessageDialog(this, "Usuário apagado!", "Apagar usuário", JOptionPane.INFORMATION_MESSAGE);
+                } catch (InternalException e) {
+                    JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível apagar o usuário!", "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
         }
     }
 
@@ -100,7 +123,7 @@ public class UserListView extends javax.swing.JInternalFrame {
         searchButton = new javax.swing.JButton();
         userScrollPane = new javax.swing.JScrollPane();
         userTable = new javax.swing.JTable();
-        jPanel1 = new javax.swing.JPanel();
+        utilsPanel = new javax.swing.JPanel();
         pageComboBox = new javax.swing.JComboBox<>();
         deleteButton = new javax.swing.JButton();
 
@@ -173,14 +196,14 @@ public class UserListView extends javax.swing.JInternalFrame {
 
         getContentPane().add(userScrollPane, java.awt.BorderLayout.CENTER);
 
-        jPanel1.setLayout(new java.awt.BorderLayout());
+        utilsPanel.setLayout(new java.awt.BorderLayout());
 
         pageComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 pageComboBoxActionPerformed(evt);
             }
         });
-        jPanel1.add(pageComboBox, java.awt.BorderLayout.CENTER);
+        utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
 
         deleteButton.setText("Apagar");
         deleteButton.setEnabled(false);
@@ -189,9 +212,14 @@ public class UserListView extends javax.swing.JInternalFrame {
                 deleteButtonActionPerformed(evt);
             }
         });
-        jPanel1.add(deleteButton, java.awt.BorderLayout.PAGE_END);
+        deleteButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                deleteButtonKeyPressed(evt);
+            }
+        });
+        utilsPanel.add(deleteButton, java.awt.BorderLayout.PAGE_END);
 
-        getContentPane().add(jPanel1, java.awt.BorderLayout.PAGE_END);
+        getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
         setBounds(0, 0, 800, 600);
     }// </editor-fold>//GEN-END:initComponents
@@ -218,7 +246,7 @@ public class UserListView extends javax.swing.JInternalFrame {
 
         if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
-            this.loadUserList(this.userService.findAll(this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+            this.loadUserList(this.userService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
         }
     }//GEN-LAST:event_pageComboBoxActionPerformed
 
@@ -234,28 +262,23 @@ public class UserListView extends javax.swing.JInternalFrame {
     }//GEN-LAST:event_userTableMouseReleased
 
     private void deleteButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteButtonActionPerformed
-        if (this.selectedRow >= 0) {
-            Long id = (Long) this.userTable.getValueAt(this.selectedRow, this.ID_COLUMN_POSITION);
-
-            try {
-                this.userService.deleteById(id);
-                int pageQuantity = this.userService.pageQuantity(this.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
-                this.fillCombobok(pageQuantity);
-                JOptionPane.showMessageDialog(this, "Usuário apagado!", "Apagar usuário", JOptionPane.INFORMATION_MESSAGE);
-            } catch (InternalException e) {
-                JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível apagar o usuário!", "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        }
+        this.delete();
     }//GEN-LAST:event_deleteButtonActionPerformed
+
+    private void deleteButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_deleteButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.delete();
+        }
+    }//GEN-LAST:event_deleteButtonKeyPressed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton deleteButton;
-    private javax.swing.JPanel jPanel1;
     private javax.swing.JComboBox<String> pageComboBox;
     private javax.swing.JButton searchButton;
     private javax.swing.JPanel searchPanel;
     private javax.swing.JTextField searchTextField;
     private javax.swing.JScrollPane userScrollPane;
     private javax.swing.JTable userTable;
+    private javax.swing.JPanel utilsPanel;
     // End of variables declaration//GEN-END:variables
 }
