@@ -74,29 +74,33 @@ public class ProductInfoDalImp implements ProductInfoDal {
     }
 
     private List<ProductInfo> getResult(PreparedStatement preparedStatement) throws SQLException {
-        List<ProductInfo> productsInfo = new ArrayList<>();
 
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("created_Date"));
-                LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("last_modified_date"));
-                Long id = resultSet.getLong("id");
-                String size = resultSet.getString("size");
-                String color = resultSet.getString("color");
+            List<ProductInfo> productsInfo = new ArrayList<>();
 
-                ProductInfo productInfo = ProductInfo.builder()
-                        .createdDate(createdDate)
-                        .lastModifiedDate(lastModifiedDate)
-                        .id(id)
-                        .size(size)
-                        .color(color)
-                        .build();
-                productsInfo.add(productInfo);
+            while (resultSet.next()) {
+                productsInfo.add(ProductInfoDalImp.getProductInfoFromResultSet(resultSet));
             }
 
             return productsInfo;
         } catch (SQLException e) {
             throw e;
         }
+    }
+
+    public static ProductInfo getProductInfoFromResultSet(ResultSet resultSet) throws SQLException {
+        LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("product_info.created_Date"));
+        LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("product_info.last_modified_date"));
+        Long id = resultSet.getLong("product_info.id");
+        String size = resultSet.getString("product_info.size");
+        String color = resultSet.getString("product_info.color");
+
+        return ProductInfo.builder()
+                .createdDate(createdDate)
+                .lastModifiedDate(lastModifiedDate)
+                .id(id)
+                .size(size)
+                .color(color)
+                .build();
     }
 }

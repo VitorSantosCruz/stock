@@ -36,29 +36,29 @@ public class StockService {
         return this.stockDal.findAll(quantity, page);
     }
 
-    public List<Stock> findByProductFeatures(String size, String color, Map<String, String> featureMap, int quantity, int page) {
+    public List<Stock> findBy(Map<String, String> featureMap, int quantity, int page) {
         log.info("[findBy] - procurando {} produtos que tenha algum atribuo que corresponda a '{}' na página {}", quantity, featureMap, page);
 
-        return this.stockDal.findBy(size, color, featureMap, quantity, page);
+        return this.stockDal.findBy(featureMap, quantity, page);
     }
 
-    public void deleteByProductCode(int quantity, String size, String color, String productCode) {
-        log.info("[delete] - apagando {} " + (quantity == 1 ? "produto" : "produtos") + " com o código {} do estoque.", productCode);
+    public void deleteBy(int quantity, String size, String color, String productCode) {
+        log.info("[deleteBy] - apagando {} " + (quantity == 1 ? "produto" : "produtos") + " com o código {} do estoque.", quantity, productCode);
 
         this.stockDal.deleteBy(quantity, size, color, productCode);
     }
 
-    public int pageQuantity(int quantity, String size, String color) {
+    public int pageQuantity(int quantity) {
         Map<String, String> featureMap = Map.of("name", "");
 
-        return this.pageQuantity(quantity, size, color, featureMap);
+        return this.pageQuantity(quantity, featureMap);
     }
 
-    public int pageQuantity(int quantity, String size, String color, Map<String, String> featureMap) {
+    public int pageQuantity(int quantity, Map<String, String> featureMap) {
         log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (quantity == 1 ? "item" : "itens cada."), quantity);
 
         try {
-            return this.stockDal.pageQuantity(quantity, size, color, featureMap);
+            return this.stockDal.pageQuantity(quantity, featureMap);
         } catch (InternalException e) {
             return 0;
         }

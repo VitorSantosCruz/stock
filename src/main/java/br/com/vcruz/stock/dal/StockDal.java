@@ -14,11 +14,13 @@ public interface StockDal {
 
     List<Stock> findAll(int quantity, int page);
 
-    List<Stock> findBy(String size, String color, Map<String, String> featureMap, int quantity, int page);
+    List<Stock> findBy(Map<String, String> featureMap, int quantity, int page);
 
     Stock findById(Long id);
     
+    void deleteAllByProductCode(String productCode);
+    
     void deleteBy(int quantity, String size, String color, String productCode);
 
-    int pageQuantity(int quantity, String size, String color, Map<String, String> featureMap);
+    int pageQuantity(int quantity, Map<String, String> featureMap);
 }

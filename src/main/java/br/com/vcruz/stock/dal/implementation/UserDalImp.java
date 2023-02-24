@@ -105,6 +105,7 @@ public class UserDalImp implements UserDal {
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, quantity);
             preparedStatement.setInt(2, (page * quantity));
+
             return this.getResult(preparedStatement);
         } catch (NotFoundException | IOException | SQLException e) {
             log.error("[findAll] - {}", e.getMessage());
@@ -223,40 +224,44 @@ public class UserDalImp implements UserDal {
     }
 
     private List<User> getResult(PreparedStatement preparedStatement) throws NotFoundException, SQLException {
-        List<User> users = new ArrayList<>();
 
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("created_Date"));
-                LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("last_modified_date"));
-                Long id = resultSet.getLong("id");
-                String name = resultSet.getString("name");
-                String login = resultSet.getString("login");
-                String password = resultSet.getString("password");
-                boolean isRoot = resultSet.getBoolean("is_root");
-                int loginAttempCont = resultSet.getInt("login_attemp_cont");
-                LocalDateTime localDateTimeBlockedUntil = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("blocked_until"));
-                LocalTime blockedUntil = localDateTimeBlockedUntil == null ? null : localDateTimeBlockedUntil.toLocalTime();
-                boolean isDeleted = resultSet.getBoolean("is_deleted");
+            List<User> users = new ArrayList<>();
 
-                User user = User.builder()
-                        .createdDate(createdDate)
-                        .lastModifiedDate(lastModifiedDate)
-                        .id(id)
-                        .name(name)
-                        .login(login)
-                        .password(password)
-                        .isRoot(isRoot)
-                        .loginAttempCont(loginAttempCont)
-                        .blockedUntil(blockedUntil)
-                        .isDeleted(isDeleted)
-                        .build();
-                users.add(user);
+            while (resultSet.next()) {
+                users.add(UserDalImp.getUserFromResultSet(resultSet));
             }
 
             return users;
         } catch (SQLException e) {
             throw e;
         }
+    }
+
+    public static User getUserFromResultSet(ResultSet resultSet) throws SQLException {
+        LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("user.created_Date"));
+        LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("user.last_modified_date"));
+        Long id = resultSet.getLong("user.id");
+        String name = resultSet.getString("user.name");
+        String login = resultSet.getString("user.login");
+        String password = resultSet.getString("user.password");
+        boolean isRoot = resultSet.getBoolean("user.is_root");
+        int loginAttempCont = resultSet.getInt("user.login_attemp_cont");
+        LocalDateTime localDateTimeBlockedUntil = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("user.blocked_until"));
+        LocalTime blockedUntil = localDateTimeBlockedUntil == null ? null : localDateTimeBlockedUntil.toLocalTime();
+        boolean isDeleted = resultSet.getBoolean("user.is_deleted");
+
+        return User.builder()
+                .createdDate(createdDate)
+                .lastModifiedDate(lastModifiedDate)
+                .id(id)
+                .name(name)
+                .login(login)
+                .password(password)
+                .isRoot(isRoot)
+                .loginAttempCont(loginAttempCont)
+                .blockedUntil(blockedUntil)
+                .isDeleted(isDeleted)
+                .build();
     }
 }

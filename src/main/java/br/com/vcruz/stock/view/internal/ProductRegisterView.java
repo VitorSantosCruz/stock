@@ -61,14 +61,17 @@ public class ProductRegisterView extends javax.swing.JInternalFrame {
                 titleOfJOptionPane = "Edição";
                 messageOfJOptionPane = "Produto editado!";
 
-                this.product = this.productService.update(product.getId(), code, name, model, brand, price, createdBy);
-                this.fillProductData(product);
+                this.productService.update(product.getId(), code, name, model, brand, price, createdBy);
             } else {
                 this.productService.save(code, name, model, brand, price, createdBy);
                 this.resetForm();
             }
 
             JOptionPane.showMessageDialog(this, messageOfJOptionPane, titleOfJOptionPane, JOptionPane.INFORMATION_MESSAGE);
+
+            if (isEditing) {
+                DashboardView.openInternalFrame(new ProductListView());
+            }
         } catch (ValidationException | DuplicateException | InternalException e) {
             String error = e.getMessage();
 

@@ -12,10 +12,12 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @SuperBuilder
 public class Stock extends Audit {
+
     private Long id;
     private boolean isDeleted;
     private Product product;
     private ProductInfo productInfo;
     private Sale sale;
     private User creator;
+    private int quantity;
 }
