@@ -1,5 +1,6 @@
 package br.com.vcruz.stock.model;
 
+import br.com.vcruz.stock.enumerator.PaymentMethod;
 import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,14 +13,12 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 @SuperBuilder
-public class Product extends Audit {
+public class Sale extends Audit {
 
     private Long id;
-    private String code;
-    private String name;
-    private String model;
-    private String brand;
     private BigDecimal price;
-    private boolean isDeleted;
-    private User creator;
+    private PaymentMethod formOfPayment;
+    private BigDecimal discount;
+    private Stock stock;
+    private User seller;
 }

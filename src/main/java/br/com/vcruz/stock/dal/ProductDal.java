@@ -19,6 +19,8 @@ public interface ProductDal {
 
     List<Product> findBy(Map<String, String> featureMap, int quantity, int page);
 
+    Product findById(Long id);
+    
     Product findByCode(String code);
 
     void deleteById(Long id);

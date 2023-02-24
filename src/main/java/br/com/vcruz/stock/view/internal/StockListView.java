@@ -2,7 +2,9 @@ package br.com.vcruz.stock.view.internal;
 
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.model.Product;
-import br.com.vcruz.stock.service.ProductService;
+import br.com.vcruz.stock.model.ProductInfo;
+import br.com.vcruz.stock.model.Stock;
+import br.com.vcruz.stock.service.StockService;
 import br.com.vcruz.stock.utils.PageableUtils;
 import br.com.vcruz.stock.view.DashboardView;
 import java.awt.event.KeyEvent;
@@ -16,27 +18,31 @@ import javax.swing.table.DefaultTableModel;
  *
  * @author vcruz
  */
-public class ProductListView extends javax.swing.JInternalFrame {
+public class StockListView extends javax.swing.JInternalFrame {
 
-    private final ProductService productService;
-    private final int ID_COLUMN_POSITION;
+    private final StockService stockService;
     private final int CODE_COLUMN_POSITION;
+    private final int SIZE_COLUMN_POSITION;
+    private final int COLOR_COLUMN_POSITION;
+    private final int QUANTITY_COLUMN_POSITION;
     private int currentPage;
     private boolean isLookingFor;
     private int selectedRow;
 
     /**
-     * Creates new form ProductListView
+     * Creates new form StockListView
      */
-    public ProductListView() {
-        this.ID_COLUMN_POSITION = 0;
+    public StockListView() {
         this.CODE_COLUMN_POSITION = 1;
-        this.productService = new ProductService();
+        this.SIZE_COLUMN_POSITION = 2;
+        this.COLOR_COLUMN_POSITION = 3;
+        this.QUANTITY_COLUMN_POSITION = 8;
+        this.stockService = new StockService();
         this.selectedRow = -1;
 
         initComponents();
 
-        int pageQuantity = this.productService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         this.fillCombobok(pageQuantity);
     }
 
@@ -53,64 +59,102 @@ public class ProductListView extends javax.swing.JInternalFrame {
 
         int pageQuantity;
 
-        if (featureMap.get("product_code") == null
+        if (featureMap.get("size") == null
+                && featureMap.get("color") == null
+                && featureMap.get("product_code") == null
                 && featureMap.get("name") == null
                 && featureMap.get("model") == null
                 && featureMap.get("brand") == null) {
             this.isLookingFor = false;
-            pageQuantity = this.productService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         } else {
             this.isLookingFor = true;
-            pageQuantity = this.productService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
         }
 
         this.fillCombobok(pageQuantity);
 
         if (isLookingFor) {
-            this.loadProductList(this.productService.findBy(featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            this.loadStockList(this.stockService.findBy(featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
         }
     }
 
     private Map<String, String> getFeatureMap() {
         Map<String, String> featureMap = new HashMap<>();
+        String size = this.sizeTextField.getText();
+        String color = this.colorTextField.getText();
         String code = this.codeTextField.getText();
         String name = this.nameTextField.getText();
         String model = this.modelTextField.getText();
         String brand = this.brandTextField.getText();
 
+        if (!size.isBlank()) {
+            featureMap.put("size", size);
+        }
+
+        if (!color.isBlank()) {
+            featureMap.put("color", color);
+        }
+
         if (!code.isBlank()) {
-            featureMap.put("product_code", this.codeTextField.getText());
+            featureMap.put("product_code", code);
         }
 
         if (!name.isBlank()) {
-            featureMap.put("name", this.nameTextField.getText());
+            featureMap.put("name", name);
         }
 
         if (!model.isBlank()) {
-            featureMap.put("model", this.modelTextField.getText());
+            featureMap.put("model", model);
         }
 
         if (!brand.isBlank()) {
-            featureMap.put("brand", this.brandTextField.getText());
+            featureMap.put("brand", brand);
         }
 
         return featureMap;
     }
 
     private void delete() {
+        String quantityString = JOptionPane.showInputDialog(this, "Quantos produtos você deseja excluir?", "Quantidade a ser excluída", JOptionPane.INFORMATION_MESSAGE);
+        int quantityToBeDeleted;
+
+        try {
+            if (quantityString == null || quantityString.isBlank()) {
+                return;
+            }
+
+            quantityToBeDeleted = Integer.parseInt(quantityString);
+            int productQuantity = (Integer) this.stockTable.getValueAt(this.selectedRow, this.QUANTITY_COLUMN_POSITION);
+
+            if (quantityToBeDeleted > productQuantity) {
+                JOptionPane.showMessageDialog(this, "A quantidade a ser excluída não pode ser mair que a quantidade disponível!", "Erro", JOptionPane.ERROR_MESSAGE);
+                this.delete();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "É necessário que um número interiro seja informado!", "Erro", JOptionPane.ERROR_MESSAGE);
+            this.delete();
+            return;
+        }
+
         Object[] options = {"Sim", "Não"};
-        int delete = JOptionPane.showOptionDialog(this, "Tem certeza que deseja apagar esse produto?", "Apagar", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        int delete = JOptionPane.showOptionDialog(this, "Tem certeza que deseja apagar esse produto do estoque?", "Apagar", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
         if (JOptionPane.YES_OPTION == delete) {
             if (this.selectedRow >= 0) {
-                Long id = (Long) this.productTable.getValueAt(this.selectedRow, this.ID_COLUMN_POSITION);
+                String productCode = (String) this.stockTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
+                String productSize = (String) this.stockTable.getValueAt(this.selectedRow, this.SIZE_COLUMN_POSITION);
+                String productColor = (String) this.stockTable.getValueAt(this.selectedRow, this.COLOR_COLUMN_POSITION);
 
                 try {
-                    this.productService.deleteById(id);
-                    int pageQuantity = this.productService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+                    this.stockService.deleteBy(quantityToBeDeleted, productSize, productColor, productCode);
+                    int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
 
                     if (pageQuantity == 0) {
-                        this.loadProductList(this.productService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+                        this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+                    } else if (isLookingFor) {
+                        this.search();
                     }
 
                     this.fillCombobok(pageQuantity);
@@ -122,47 +166,30 @@ public class ProductListView extends javax.swing.JInternalFrame {
         }
     }
 
-    private void loadProductList(List<Product> products) {
+    private void loadStockList(List<Stock> stocks) {
         try {
-            this.fillProductTable(products);
+            this.fillStockTable(stocks);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar a lista de produtos!", "Erro", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void fillProductTable(List<Product> products) {
+    private void fillStockTable(List<Stock> stocks) {
         this.clearTable();
 
-        DefaultTableModel defaultTableModel = (DefaultTableModel) this.productTable.getModel();
+        DefaultTableModel defaultTableModel = (DefaultTableModel) this.stockTable.getModel();
 
-        products.forEach(product -> {
-            defaultTableModel.addRow(new Object[]{product.getId(), product.getCode(), product.getName(), product.getModel(), product.getBrand(), product.getPrice()});
+        stocks.forEach(stock -> {
+            Product product = stock.getProduct();
+            ProductInfo productInfo = stock.getProductInfo();
+
+            defaultTableModel.addRow(new Object[]{stock.getId(), product.getCode(), productInfo.getSize(), productInfo.getColor(), product.getName(), product.getModel(), product.getBrand(), product.getPrice(), stock.getQuantity()});
         });
     }
 
     private void clearTable() {
-        DefaultTableModel defaultTableModel = (DefaultTableModel) this.productTable.getModel();
+        DefaultTableModel defaultTableModel = (DefaultTableModel) this.stockTable.getModel();
         defaultTableModel.setRowCount(0);
-    }
-
-    private void edit() {
-        try {
-            String code = (String) this.productTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
-            Product product = this.productService.findByCode(code);
-            DashboardView.openInternalFrame(new ProductRegisterView(product, true));
-        } catch (InternalException e) {
-            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void addToStock() {
-        try {
-            String code = (String) this.productTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
-            Product product = this.productService.findByCode(code);
-            DashboardView.openInternalFrame(new StockRegisterView(product));
-        } catch (InternalException e) {
-            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     /**
@@ -175,6 +202,10 @@ public class ProductListView extends javax.swing.JInternalFrame {
     private void initComponents() {
 
         searchPanel = new javax.swing.JPanel();
+        sizeLabel = new javax.swing.JLabel();
+        sizeTextField = new javax.swing.JTextField();
+        colorLabel = new javax.swing.JLabel();
+        colorTextField = new javax.swing.JTextField();
         codeLabel = new javax.swing.JLabel();
         codeTextField = new javax.swing.JTextField();
         nameLabel = new javax.swing.JLabel();
@@ -184,18 +215,32 @@ public class ProductListView extends javax.swing.JInternalFrame {
         brandLabel = new javax.swing.JLabel();
         brandTextField = new javax.swing.JTextField();
         searchButton = new javax.swing.JButton();
-        productScrollPane = new javax.swing.JScrollPane();
-        productTable = new javax.swing.JTable();
+        stockScrollPane = new javax.swing.JScrollPane();
+        stockTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
-        pageComboBox = new javax.swing.JComboBox<>();
-        actionsPanel = new javax.swing.JPanel();
-        editAndDeletePanel = new javax.swing.JPanel();
-        editButton = new javax.swing.JButton();
         deleteButton = new javax.swing.JButton();
-        stockPanel = new javax.swing.JPanel();
-        addToStockButton = new javax.swing.JButton();
+        pageComboBox = new javax.swing.JComboBox<>();
 
         setClosable(true);
+
+        searchPanel.setMinimumSize(new java.awt.Dimension(0, 0));
+        searchPanel.setPreferredSize(new java.awt.Dimension(787, 250));
+
+        sizeLabel.setText("Tamanho");
+
+        sizeTextField.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                sizeTextFieldKeyPressed(evt);
+            }
+        });
+
+        colorLabel.setText("Cor");
+
+        colorTextField.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                colorTextFieldKeyPressed(evt);
+            }
+        });
 
         codeLabel.setText("Código");
 
@@ -248,21 +293,27 @@ public class ProductListView extends javax.swing.JInternalFrame {
             .addGroup(searchPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(searchPanelLayout.createSequentialGroup()
-                        .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(codeLabel)
-                            .addComponent(nameLabel)
-                            .addComponent(modelLabel)
-                            .addComponent(brandLabel))
-                        .addGap(18, 18, 18)
-                        .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(modelTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 716, Short.MAX_VALUE)
-                            .addComponent(codeTextField)
-                            .addComponent(nameTextField)
-                            .addComponent(brandTextField)))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, searchPanelLayout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(searchButton)))
+                        .addComponent(searchButton))
+                    .addComponent(codeLabel)
+                    .addGroup(searchPanelLayout.createSequentialGroup()
+                        .addComponent(colorLabel)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(searchPanelLayout.createSequentialGroup()
+                        .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(nameLabel)
+                            .addComponent(modelLabel)
+                            .addComponent(brandLabel)
+                            .addComponent(sizeLabel))
+                        .addGap(49, 49, 49)
+                        .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(modelTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 677, Short.MAX_VALUE)
+                            .addComponent(brandTextField)
+                            .addComponent(nameTextField)
+                            .addComponent(colorTextField)
+                            .addComponent(sizeTextField)
+                            .addComponent(codeTextField, javax.swing.GroupLayout.Alignment.TRAILING))))
                 .addContainerGap())
         );
         searchPanelLayout.setVerticalGroup(
@@ -272,6 +323,14 @@ public class ProductListView extends javax.swing.JInternalFrame {
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(codeLabel)
                     .addComponent(codeTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(colorLabel)
+                    .addComponent(colorTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(9, 9, 9)
+                .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(sizeLabel)
+                    .addComponent(sizeTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(nameLabel)
@@ -284,26 +343,26 @@ public class ProductListView extends javax.swing.JInternalFrame {
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(brandLabel)
                     .addComponent(brandTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(18, 18, 18)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(searchButton)
-                .addContainerGap(16, Short.MAX_VALUE))
+                .addContainerGap(50, Short.MAX_VALUE))
         );
 
         getContentPane().add(searchPanel, java.awt.BorderLayout.PAGE_START);
 
-        productTable.setModel(new javax.swing.table.DefaultTableModel(
+        stockTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
 
             },
             new String [] {
-                "ID", "Código", "Nome", "Modelo", "Marca", "Preço"
+                "ID", "Código", "Tamanho", "Cor", "Nome", "Modelo", "Marca", "Preço", "Quantidade"
             }
         ) {
             Class[] types = new Class [] {
-                java.lang.Long.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.Double.class
+                java.lang.Long.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.Double.class, java.lang.Integer.class
             };
             boolean[] canEdit = new boolean [] {
-                false, false, false, false, false, false
+                false, false, false, false, false, false, false, false, false
             };
 
             public Class getColumnClass(int columnIndex) {
@@ -314,51 +373,29 @@ public class ProductListView extends javax.swing.JInternalFrame {
                 return canEdit [columnIndex];
             }
         });
-        productTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        productTable.getTableHeader().setReorderingAllowed(false);
-        productTable.addMouseListener(new java.awt.event.MouseAdapter() {
+        stockTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        stockTable.getTableHeader().setReorderingAllowed(false);
+        stockTable.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseReleased(java.awt.event.MouseEvent evt) {
-                productTableMouseReleased(evt);
+                stockTableMouseReleased(evt);
             }
         });
-        productScrollPane.setViewportView(productTable);
-        if (productTable.getColumnModel().getColumnCount() > 0) {
-            productTable.getColumnModel().getColumn(0).setResizable(false);
-            productTable.getColumnModel().getColumn(1).setResizable(false);
-            productTable.getColumnModel().getColumn(2).setResizable(false);
-            productTable.getColumnModel().getColumn(3).setResizable(false);
-            productTable.getColumnModel().getColumn(4).setResizable(false);
-            productTable.getColumnModel().getColumn(5).setResizable(false);
+        stockScrollPane.setViewportView(stockTable);
+        if (stockTable.getColumnModel().getColumnCount() > 0) {
+            stockTable.getColumnModel().getColumn(0).setResizable(false);
+            stockTable.getColumnModel().getColumn(1).setResizable(false);
+            stockTable.getColumnModel().getColumn(2).setResizable(false);
+            stockTable.getColumnModel().getColumn(3).setResizable(false);
+            stockTable.getColumnModel().getColumn(4).setResizable(false);
+            stockTable.getColumnModel().getColumn(5).setResizable(false);
+            stockTable.getColumnModel().getColumn(6).setResizable(false);
+            stockTable.getColumnModel().getColumn(7).setResizable(false);
+            stockTable.getColumnModel().getColumn(8).setResizable(false);
         }
 
-        getContentPane().add(productScrollPane, java.awt.BorderLayout.CENTER);
+        getContentPane().add(stockScrollPane, java.awt.BorderLayout.CENTER);
 
         utilsPanel.setLayout(new java.awt.BorderLayout());
-
-        pageComboBox.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                pageComboBoxActionPerformed(evt);
-            }
-        });
-        utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
-
-        actionsPanel.setLayout(new java.awt.BorderLayout());
-
-        editAndDeletePanel.setLayout(new java.awt.GridLayout());
-
-        editButton.setText("Editar");
-        editButton.setEnabled(false);
-        editButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                editButtonActionPerformed(evt);
-            }
-        });
-        editButton.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                editButtonKeyPressed(evt);
-            }
-        });
-        editAndDeletePanel.add(editButton);
 
         deleteButton.setText("Apagar");
         deleteButton.setEnabled(false);
@@ -372,34 +409,41 @@ public class ProductListView extends javax.swing.JInternalFrame {
                 deleteButtonKeyPressed(evt);
             }
         });
-        editAndDeletePanel.add(deleteButton);
+        utilsPanel.add(deleteButton, java.awt.BorderLayout.PAGE_END);
 
-        actionsPanel.add(editAndDeletePanel, java.awt.BorderLayout.CENTER);
-
-        stockPanel.setLayout(new java.awt.GridLayout());
-
-        addToStockButton.setText("Adicionar ao estoque");
-        addToStockButton.setEnabled(false);
-        addToStockButton.addActionListener(new java.awt.event.ActionListener() {
+        pageComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addToStockButtonActionPerformed(evt);
+                pageComboBoxActionPerformed(evt);
             }
         });
-        addToStockButton.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addToStockButtonKeyPressed(evt);
-            }
-        });
-        stockPanel.add(addToStockButton);
-
-        actionsPanel.add(stockPanel, java.awt.BorderLayout.PAGE_END);
-
-        utilsPanel.add(actionsPanel, java.awt.BorderLayout.PAGE_END);
+        utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
 
         getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
         setBounds(0, 0, 800, 600);
     }// </editor-fold>//GEN-END:initComponents
+
+    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
+        this.selectedRow = -1;
+        this.deleteButton.setEnabled(false);
+
+        if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
+            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
+            this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+        }
+    }//GEN-LAST:event_pageComboBoxActionPerformed
+
+    private void sizeTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sizeTextFieldKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.search();
+        }
+    }//GEN-LAST:event_sizeTextFieldKeyPressed
+
+    private void colorTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_colorTextFieldKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.search();
+        }
+    }//GEN-LAST:event_colorTextFieldKeyPressed
 
     private void codeTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_codeTextFieldKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -435,6 +479,17 @@ public class ProductListView extends javax.swing.JInternalFrame {
         this.search();
     }//GEN-LAST:event_searchButtonActionPerformed
 
+    private void stockTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_stockTableMouseReleased
+        if (this.selectedRow == this.stockTable.getSelectedRow()) {
+            this.stockTable.clearSelection();
+            this.selectedRow = -1;
+            this.deleteButton.setEnabled(false);
+        } else {
+            this.selectedRow = this.stockTable.getSelectedRow();
+            this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
+        }
+    }//GEN-LAST:event_stockTableMouseReleased
+
     private void deleteButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_deleteButtonKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             this.delete();
@@ -445,74 +500,26 @@ public class ProductListView extends javax.swing.JInternalFrame {
         this.delete();
     }//GEN-LAST:event_deleteButtonActionPerformed
 
-    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
-        this.selectedRow = -1;
-        this.deleteButton.setEnabled(false);
-        this.editButton.setEnabled(false);
-        this.addToStockButton.setEnabled(false);
-
-        if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
-            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
-            this.loadProductList(this.productService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
-        }
-    }//GEN-LAST:event_pageComboBoxActionPerformed
-
-    private void productTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_productTableMouseReleased
-        if (this.selectedRow == this.productTable.getSelectedRow()) {
-            this.productTable.clearSelection();
-            this.selectedRow = -1;
-            this.deleteButton.setEnabled(false);
-            this.editButton.setEnabled(false);
-            this.addToStockButton.setEnabled(false);
-        } else {
-            this.selectedRow = this.productTable.getSelectedRow();
-            this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
-            this.editButton.setEnabled(true && DashboardView.loggedUser.isRoot());
-            this.addToStockButton.setEnabled(true && DashboardView.loggedUser.isRoot());
-        }
-    }//GEN-LAST:event_productTableMouseReleased
-
-    private void editButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_editButtonKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            this.edit();
-        }
-    }//GEN-LAST:event_editButtonKeyPressed
-
-    private void editButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editButtonActionPerformed
-        this.edit();
-    }//GEN-LAST:event_editButtonActionPerformed
-
-    private void addToStockButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addToStockButtonKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            this.addToStock();
-        }
-    }//GEN-LAST:event_addToStockButtonKeyPressed
-
-    private void addToStockButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addToStockButtonActionPerformed
-        this.addToStock();
-    }//GEN-LAST:event_addToStockButtonActionPerformed
-
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JPanel actionsPanel;
-    private javax.swing.JButton addToStockButton;
     private javax.swing.JLabel brandLabel;
     private javax.swing.JTextField brandTextField;
     private javax.swing.JLabel codeLabel;
     private javax.swing.JTextField codeTextField;
+    private javax.swing.JLabel colorLabel;
+    private javax.swing.JTextField colorTextField;
     private javax.swing.JButton deleteButton;
-    private javax.swing.JPanel editAndDeletePanel;
-    private javax.swing.JButton editButton;
     private javax.swing.JLabel modelLabel;
     private javax.swing.JTextField modelTextField;
     private javax.swing.JLabel nameLabel;
     private javax.swing.JTextField nameTextField;
     private javax.swing.JComboBox<String> pageComboBox;
-    private javax.swing.JScrollPane productScrollPane;
-    private javax.swing.JTable productTable;
     private javax.swing.JButton searchButton;
     private javax.swing.JPanel searchPanel;
-    private javax.swing.JPanel stockPanel;
+    private javax.swing.JLabel sizeLabel;
+    private javax.swing.JTextField sizeTextField;
+    private javax.swing.JScrollPane stockScrollPane;
+    private javax.swing.JTable stockTable;
     private javax.swing.JPanel utilsPanel;
     // End of variables declaration//GEN-END:variables
 }
