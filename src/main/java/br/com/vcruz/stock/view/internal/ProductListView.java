@@ -155,6 +155,16 @@ public class ProductListView extends javax.swing.JInternalFrame {
         }
     }
 
+    private void addToStock() {
+        try {
+            String code = (String) this.productTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
+            Product product = this.productService.findByCode(code);
+            DashboardView.openInternalFrame(new StockRegisterView(product));
+        } catch (InternalException e) {
+            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -178,9 +188,12 @@ public class ProductListView extends javax.swing.JInternalFrame {
         productTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
         pageComboBox = new javax.swing.JComboBox<>();
+        actionsPanel = new javax.swing.JPanel();
         editAndDeletePanel = new javax.swing.JPanel();
         editButton = new javax.swing.JButton();
         deleteButton = new javax.swing.JButton();
+        stockPanel = new javax.swing.JPanel();
+        addToStockButton = new javax.swing.JButton();
 
         setClosable(true);
 
@@ -329,7 +342,9 @@ public class ProductListView extends javax.swing.JInternalFrame {
         });
         utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
 
-        editAndDeletePanel.setLayout(new java.awt.GridLayout(1, 0));
+        actionsPanel.setLayout(new java.awt.BorderLayout());
+
+        editAndDeletePanel.setLayout(new java.awt.GridLayout());
 
         editButton.setText("Editar");
         editButton.setEnabled(false);
@@ -359,7 +374,27 @@ public class ProductListView extends javax.swing.JInternalFrame {
         });
         editAndDeletePanel.add(deleteButton);
 
-        utilsPanel.add(editAndDeletePanel, java.awt.BorderLayout.PAGE_END);
+        actionsPanel.add(editAndDeletePanel, java.awt.BorderLayout.CENTER);
+
+        stockPanel.setLayout(new java.awt.GridLayout());
+
+        addToStockButton.setText("Adicionar ao estoque");
+        addToStockButton.setEnabled(false);
+        addToStockButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addToStockButtonActionPerformed(evt);
+            }
+        });
+        addToStockButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                addToStockButtonKeyPressed(evt);
+            }
+        });
+        stockPanel.add(addToStockButton);
+
+        actionsPanel.add(stockPanel, java.awt.BorderLayout.PAGE_END);
+
+        utilsPanel.add(actionsPanel, java.awt.BorderLayout.PAGE_END);
 
         getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
@@ -414,6 +449,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
         this.selectedRow = -1;
         this.deleteButton.setEnabled(false);
         this.editButton.setEnabled(false);
+        this.addToStockButton.setEnabled(false);
 
         if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
@@ -427,10 +463,12 @@ public class ProductListView extends javax.swing.JInternalFrame {
             this.selectedRow = -1;
             this.deleteButton.setEnabled(false);
             this.editButton.setEnabled(false);
+            this.addToStockButton.setEnabled(false);
         } else {
             this.selectedRow = this.productTable.getSelectedRow();
             this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
-            this.editButton.setEnabled(true);
+            this.editButton.setEnabled(true && DashboardView.loggedUser.isRoot());
+            this.addToStockButton.setEnabled(true && DashboardView.loggedUser.isRoot());
         }
     }//GEN-LAST:event_productTableMouseReleased
 
@@ -444,8 +482,20 @@ public class ProductListView extends javax.swing.JInternalFrame {
         this.edit();
     }//GEN-LAST:event_editButtonActionPerformed
 
+    private void addToStockButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addToStockButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.addToStock();
+        }
+    }//GEN-LAST:event_addToStockButtonKeyPressed
+
+    private void addToStockButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addToStockButtonActionPerformed
+        this.addToStock();
+    }//GEN-LAST:event_addToStockButtonActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JPanel actionsPanel;
+    private javax.swing.JButton addToStockButton;
     private javax.swing.JLabel brandLabel;
     private javax.swing.JTextField brandTextField;
     private javax.swing.JLabel codeLabel;
@@ -462,6 +512,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
     private javax.swing.JTable productTable;
     private javax.swing.JButton searchButton;
     private javax.swing.JPanel searchPanel;
+    private javax.swing.JPanel stockPanel;
     private javax.swing.JPanel utilsPanel;
     // End of variables declaration//GEN-END:variables
 }

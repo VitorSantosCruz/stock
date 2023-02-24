@@ -83,7 +83,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findAll(int quantity, int page) {
-        String query = "select * from product p join user u where p.is_deleted = false group by p.id order by p.id asc limit ? offset ?";
+        String query = "select * from product where is_deleted = false limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, quantity);
@@ -99,18 +99,18 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findBy(Map<String, String> featureMap, int quantity, int page) {
-        String query = "select * from product p join user u where (";
+        String query = "select * from product where (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
-            query += "p." + key + " like ?";
+            query += key + " like ?";
 
             if (i + 1 < featureMap.keySet().size()) {
                 query += " and ";
             }
         }
 
-        query += ") and p.is_deleted = false group by p.id order by p.id asc limit ? offset ?";
+        query += ") and is_deleted = false limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query.toString())) {
             int i = 0;
@@ -132,8 +132,34 @@ public class ProductDalImp implements ProductDal {
     }
 
     @Override
+    public Product findById(Long id) {
+        String query = "select * from product where id = ? and is_deleted = false";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setLong(1, id);
+
+            List<Product> productList = this.getResult(preparedStatement);
+
+            if (productList.isEmpty()) {
+                String errorMessage = "Esse produto não existe!";
+                throw new NotFoundException(errorMessage);
+            }
+
+            return productList.get(0);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findByCode] - {}", e.getMessage());
+
+            if (e instanceof NotFoundException) {
+                throw new NotFoundException(e.getMessage());
+            }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
     public Product findByCode(String code) {
-        String query = "select * from product p join user u where p.product_code = ? and p.is_deleted = false group by p.id order by p.id asc";
+        String query = "select * from product where product_code = ? and is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, code);
@@ -217,16 +243,16 @@ public class ProductDalImp implements ProductDal {
             while (resultSet.next()) {
                 LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("created_Date"));
                 LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("last_modified_date"));
-                Long id = resultSet.getLong("p.id");
-                String code = resultSet.getString("p.product_code");
-                String name = resultSet.getString("p.name");
-                String model = resultSet.getString("p.model");
-                String brand = resultSet.getString("p.brand");
-                BigDecimal price = resultSet.getBigDecimal("p.price");
-                boolean isDeleted = resultSet.getBoolean("p.is_deleted");
+                Long id = resultSet.getLong("id");
+                String code = resultSet.getString("product_code");
+                String name = resultSet.getString("name");
+                String model = resultSet.getString("model");
+                String brand = resultSet.getString("brand");
+                BigDecimal price = resultSet.getBigDecimal("price");
+                boolean isDeleted = resultSet.getBoolean("is_deleted");
 
-                String creatorUserLogin = resultSet.getString("u.login");
-                User creatorUser = userDal.findByLogin(creatorUserLogin);
+                Long creatorId = resultSet.getLong("created_by");
+                User creator = userDal.findById(creatorId);
 
                 Product product = Product.builder()
                         .createdDate(createdDate)
@@ -238,7 +264,7 @@ public class ProductDalImp implements ProductDal {
                         .brand(brand)
                         .price(price)
                         .isDeleted(isDeleted)
-                        .creatorUser(creatorUser)
+                        .creator(creator)
                         .build();
                 products.add(product);
             }

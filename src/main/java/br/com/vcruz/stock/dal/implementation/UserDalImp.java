@@ -133,6 +133,32 @@ public class UserDalImp implements UserDal {
     }
 
     @Override
+    public User findById(Long id) {
+        String query = "select * from user where id = ? and is_deleted = false";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setLong(1, id);
+
+            List<User> userList = this.getResult(preparedStatement);
+
+            if (userList.isEmpty()) {
+                String errorMessage = "Esse usuário não existe!";
+                throw new NotFoundException(errorMessage);
+            }
+
+            return userList.get(0);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findById] - {}", e.getMessage());
+
+            if (e instanceof NotFoundException) {
+                throw new NotFoundException(e.getMessage());
+            }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
     public User findByLogin(String login) {
         String query = "select * from user where binary login = ? and is_deleted = false";
 

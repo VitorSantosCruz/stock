@@ -15,9 +15,9 @@ use stock;
 
 -- Criar tabela "user"
 create table if not exists user(
-	created_date datetime not null default current_timestamp,
+    created_date datetime not null default current_timestamp,
     last_modified_date datetime,
-	id bigint primary key auto_increment,
+    id bigint primary key auto_increment,
     name varchar(255) not null,
     login varchar(255) not null unique,
     password varchar(255) not null,
@@ -39,6 +39,43 @@ create table if not exists product(
     price decimal(9,2) not null,
     is_deleted boolean default false,
     created_by bigint not null,
+    foreign key (created_by) references user(id)
+);
+
+-- Criar tabela "sale"
+create table if not exists sale(
+    created_date datetime not null default current_timestamp,
+    last_modified_date datetime,
+    id bigint primary key auto_increment,
+    price decimal(9,2) not null,
+    form_of_payment enum('PIX', 'MONEY', 'CREDIT', 'DEBIT') not null,
+    discount decimal(9,2) not null,
+    seller_id bigint not null,
+    foreign key (seller_id) references user(id)
+);
+
+-- Criar tabela "product_info"
+create table if not exists product_info(
+    created_date datetime not null default current_timestamp,
+    last_modified_date datetime,
+    id bigint primary key auto_increment,
+    size varchar(255) not null,
+    color varchar(255) not null
+);
+
+-- Criar tabela "stock"
+create table if not exists stock(
+    created_date datetime not null default current_timestamp,
+    last_modified_date datetime,
+    id bigint primary key auto_increment,
+    is_deleted boolean default false,
+    product_id bigint not null,
+    product_info_id bigint not null,
+    sale_id bigint,
+    created_by bigint not null,
+    foreign key (product_id) references product(id),
+    foreign key (product_info_id) references product_info(id),
+    foreign key (sale_id) references sale(id),
     foreign key (created_by) references user(id)
 );
 

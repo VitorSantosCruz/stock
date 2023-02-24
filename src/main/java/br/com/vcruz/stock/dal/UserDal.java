@@ -19,6 +19,8 @@ public interface UserDal {
 
     List<User> findBy(String feature, int quantity, int page);
 
+    User findById(Long id);
+    
     User findByLogin(String login);
 
     void deleteById(Long id);
