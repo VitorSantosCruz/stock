@@ -429,7 +429,7 @@ public class ProductListView extends javax.swing.JInternalFrame {
             this.editButton.setEnabled(false);
         } else {
             this.selectedRow = this.productTable.getSelectedRow();
-            this.deleteButton.setEnabled(true);
+            this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
             this.editButton.setEnabled(true);
         }
     }//GEN-LAST:event_productTableMouseReleased

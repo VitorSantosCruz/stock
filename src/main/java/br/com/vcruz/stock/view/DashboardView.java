@@ -42,7 +42,8 @@ public class DashboardView extends javax.swing.JFrame {
         int exit = JOptionPane.showOptionDialog(this, "Tem certeza que deseja sair?", "Sair", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
         if (JOptionPane.YES_OPTION == exit) {
-            System.exit(0);
+            this.dispose();
+            new LoginView().setVisible(true);
         }
     }
 
