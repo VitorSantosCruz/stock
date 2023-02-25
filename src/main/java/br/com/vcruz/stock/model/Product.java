@@ -21,5 +21,4 @@ public class Product extends Audit {
     private String brand;
     private BigDecimal price;
     private boolean isDeleted;
-    private User creator;
 }

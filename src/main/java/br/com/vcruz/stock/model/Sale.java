@@ -20,5 +20,4 @@ public class Sale extends Audit {
     private PaymentMethod formOfPayment;
     private BigDecimal discount;
     private Stock stock;
-    private User seller;
 }

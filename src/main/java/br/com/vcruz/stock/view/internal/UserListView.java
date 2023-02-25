@@ -243,9 +243,13 @@ public class UserListView extends javax.swing.JInternalFrame {
     private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
         this.selectedRow = -1;
         this.deleteButton.setEnabled(false);
+        this.currentPage = 0;
 
-        if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
+        if (this.pageComboBox.getItemCount() > 0) {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
+        }
+
+        if (!isLookingFor) {
             this.loadUserList(this.userService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
         }
     }//GEN-LAST:event_pageComboBoxActionPerformed

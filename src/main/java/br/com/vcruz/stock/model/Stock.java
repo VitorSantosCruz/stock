@@ -18,6 +18,5 @@ public class Stock extends Audit {
     private Product product;
     private ProductInfo productInfo;
     private Sale sale;
-    private User creator;
     private int quantity;
 }

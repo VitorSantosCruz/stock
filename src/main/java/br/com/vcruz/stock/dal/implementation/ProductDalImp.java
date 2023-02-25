@@ -6,7 +6,6 @@ import br.com.vcruz.stock.exception.DuplicateException;
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.Product;
-import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.utils.DateConverterUtils;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -270,8 +269,6 @@ public class ProductDalImp implements ProductDal {
         BigDecimal price = resultSet.getBigDecimal("product.price");
         boolean isDeleted = resultSet.getBoolean("product.is_deleted");
 
-        User creator = UserDalImp.getUserFromResultSet(resultSet);
-
         return Product.builder()
                 .createdDate(createdDate)
                 .lastModifiedDate(lastModifiedDate)
@@ -282,7 +279,6 @@ public class ProductDalImp implements ProductDal {
                 .brand(brand)
                 .price(price)
                 .isDeleted(isDeleted)
-                .creator(creator)
                 .build();
     }
 }

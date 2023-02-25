@@ -1,16 +1,21 @@
 package br.com.vcruz.stock.view.internal;
 
+import br.com.vcruz.stock.enumerator.PaymentMethod;
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.model.Product;
 import br.com.vcruz.stock.model.ProductInfo;
 import br.com.vcruz.stock.model.Stock;
+import br.com.vcruz.stock.service.SaleService;
 import br.com.vcruz.stock.service.StockService;
 import br.com.vcruz.stock.utils.PageableUtils;
 import br.com.vcruz.stock.view.DashboardView;
 import java.awt.event.KeyEvent;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
@@ -18,32 +23,45 @@ import javax.swing.table.DefaultTableModel;
  *
  * @author vcruz
  */
-public class StockListView extends javax.swing.JInternalFrame {
+public class CartView extends javax.swing.JInternalFrame {
 
     private final StockService stockService;
+    private final SaleService saleService;
     private final int CODE_COLUMN_POSITION;
     private final int SIZE_COLUMN_POSITION;
     private final int COLOR_COLUMN_POSITION;
     private final int QUANTITY_COLUMN_POSITION;
+    private List<Map<String, String>> cart;
     private int currentPage;
     private boolean isLookingFor;
     private int selectedRow;
+    private final BigDecimal price;
 
     /**
-     * Creates new form StockListView
+     * Creates new form CartView
+     *
+     * @param cart
      */
-    public StockListView() {
+    public CartView(List<Map<String, String>> cart) {
         this.CODE_COLUMN_POSITION = 1;
         this.SIZE_COLUMN_POSITION = 2;
         this.COLOR_COLUMN_POSITION = 3;
         this.QUANTITY_COLUMN_POSITION = 8;
         this.stockService = new StockService();
+        this.saleService = new SaleService();
+        this.cart = cart;
         this.selectedRow = -1;
 
         initComponents();
 
-        int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        int pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         this.fillCombobok(pageQuantity);
+
+        this.price = cart.stream()
+                .map(product -> new BigDecimal(product.get("unitPrice")).multiply(new BigDecimal(product.get("quantity"))))
+                .reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
+
+        this.priceLabel.setText("Valor total: R$ " + this.price + "  ");
     }
 
     private void fillCombobok(int pageQuantity) {
@@ -57,7 +75,7 @@ public class StockListView extends javax.swing.JInternalFrame {
     private void search() {
         Map<String, String> featureMap = this.getFeatureMap();
 
-        int pageQuantity;
+        int pageQuantity = 0;
 
         if (featureMap.get("size") == null
                 && featureMap.get("color") == null
@@ -66,16 +84,25 @@ public class StockListView extends javax.swing.JInternalFrame {
                 && featureMap.get("model") == null
                 && featureMap.get("brand") == null) {
             this.isLookingFor = false;
-            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+
+            if (!this.cart.isEmpty()) {
+                pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+            }
         } else {
             this.isLookingFor = true;
-            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            if (!this.cart.isEmpty()) {
+                pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            }
         }
 
         this.fillCombobok(pageQuantity);
 
         if (isLookingFor) {
-            this.loadStockList(this.stockService.findBy(featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            if (this.cart.isEmpty()) {
+                this.loadStockList(new ArrayList<>());
+            } else {
+                this.loadStockList(this.stockService.findByOnCart(cart, featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            }
         }
     }
 
@@ -116,19 +143,20 @@ public class StockListView extends javax.swing.JInternalFrame {
     }
 
     private void delete() {
-        String quantityString = JOptionPane.showInputDialog(this, "Quantos produtos você deseja excluir?", "Quantidade a ser excluída", JOptionPane.INFORMATION_MESSAGE);
-        int quantityToBeDeleted;
+        String quantityString = JOptionPane.showInputDialog(this, "Quantos produtos iguais a esse você deseja remover do carrinho?", "Quantidade a ser excluída", JOptionPane.INFORMATION_MESSAGE);
+        int quantityToBeRemove;
 
         try {
             if (quantityString == null || quantityString.isBlank()) {
                 return;
             }
 
-            quantityToBeDeleted = Integer.parseInt(quantityString);
             int productQuantity = (Integer) this.stockTable.getValueAt(this.selectedRow, this.QUANTITY_COLUMN_POSITION);
 
-            if (quantityToBeDeleted > productQuantity) {
-                JOptionPane.showMessageDialog(this, "A quantidade a ser excluída não pode ser mair que a quantidade disponível!", "Erro", JOptionPane.ERROR_MESSAGE);
+            quantityToBeRemove = Integer.parseInt(quantityString);
+
+            if (quantityToBeRemove > productQuantity) {
+                JOptionPane.showMessageDialog(this, "A quantidade a ser removida não pode ser mair que a quantidade disponível!", "Erro", JOptionPane.ERROR_MESSAGE);
                 this.delete();
                 return;
             }
@@ -138,30 +166,37 @@ public class StockListView extends javax.swing.JInternalFrame {
             return;
         }
 
-        Object[] options = {"Sim", "Não"};
-        int delete = JOptionPane.showOptionDialog(this, "Tem certeza que deseja apagar esse produto do estoque?", "Apagar", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        String productCode = (String) this.stockTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
+        String productSize = (String) this.stockTable.getValueAt(this.selectedRow, this.SIZE_COLUMN_POSITION);
+        String productColor = (String) this.stockTable.getValueAt(this.selectedRow, this.COLOR_COLUMN_POSITION);
 
-        if (JOptionPane.YES_OPTION == delete) {
-            String productCode = (String) this.stockTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
-            String productSize = (String) this.stockTable.getValueAt(this.selectedRow, this.SIZE_COLUMN_POSITION);
-            String productColor = (String) this.stockTable.getValueAt(this.selectedRow, this.COLOR_COLUMN_POSITION);
+        this.cart = this.cart.stream().map(cartProduct -> {
+            if (cartProduct.get("productCode").equals(productCode)
+                    && cartProduct.get("size").equals(productSize)
+                    && cartProduct.get("color").equals(productColor)) {
+                int cartProductQuantity = Integer.parseInt(cartProduct.get("quantity"));
 
-            try {
-                this.stockService.deleteBy(quantityToBeDeleted, productSize, productColor, productCode);
-                int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
-
-                if (pageQuantity == 0) {
-                    this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
-                } else if (isLookingFor) {
-                    this.search();
-                }
-
-                this.fillCombobok(pageQuantity);
-                JOptionPane.showMessageDialog(this, "Produto apagado!", "Apagar produto", JOptionPane.INFORMATION_MESSAGE);
-            } catch (InternalException e) {
-                JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível apagar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
+                cartProduct.put("quantity", String.valueOf(cartProductQuantity - quantityToBeRemove));
             }
+
+            return cartProduct;
+        }).filter(cartProduct -> Integer.parseInt(cartProduct.get("quantity")) > 0).collect(Collectors.toCollection(ArrayList::new));
+
+        int pageQuantity;
+
+        if (isLookingFor) {
+            Map<String, String> featureMap = this.getFeatureMap();
+            pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+
+        } else {
+            pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         }
+
+        if (this.cart.isEmpty()) {
+            DashboardView.openInternalFrame(new SaleView());
+        }
+
+        this.fillCombobok(pageQuantity);
     }
 
     private void loadStockList(List<Stock> stocks) {
@@ -190,6 +225,36 @@ public class StockListView extends javax.swing.JInternalFrame {
         defaultTableModel.setRowCount(0);
     }
 
+    private void sale() {
+        PaymentMethod[] paymentMethodValues = PaymentMethod.values();
+        String[] choices = new String[paymentMethodValues.length];
+        Map<String, String> choicesMap = new HashMap<>();
+
+        for (int i = 0; i < paymentMethodValues.length; i++) {
+            choices[i] = paymentMethodValues[i].getValue();
+            choicesMap.put(paymentMethodValues[i].getValue(), paymentMethodValues[i].toString());
+        }
+
+        String choice = (String) JOptionPane.showInputDialog(null, "Escolha o método de pagamento",
+                "Método de pagamento", JOptionPane.INFORMATION_MESSAGE, null,
+                choices,
+                choices[1]);
+
+        if (choice == null) {
+            return;
+        }
+
+        String paymentMethod = choicesMap.get(choice);
+
+        try {
+            this.saleService.save(cart, this.price, PaymentMethod.valueOf(paymentMethod), BigDecimal.ZERO, DashboardView.loggedUser.getId());
+
+            DashboardView.openInternalFrame(new SaleView());
+        } catch (InternalException e) {
+            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível finalizar a venda!", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -216,12 +281,33 @@ public class StockListView extends javax.swing.JInternalFrame {
         stockScrollPane = new javax.swing.JScrollPane();
         stockTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
-        deleteButton = new javax.swing.JButton();
         pageComboBox = new javax.swing.JComboBox<>();
+        saleAndPricePanel = new javax.swing.JPanel();
+        pricePanel = new javax.swing.JPanel();
+        priceLabel = new javax.swing.JLabel();
+        salePanel = new javax.swing.JPanel();
+        deleteButton = new javax.swing.JButton();
+        saleButton = new javax.swing.JButton();
 
         setClosable(true);
+        addInternalFrameListener(new javax.swing.event.InternalFrameListener() {
+            public void internalFrameActivated(javax.swing.event.InternalFrameEvent evt) {
+            }
+            public void internalFrameClosed(javax.swing.event.InternalFrameEvent evt) {
+            }
+            public void internalFrameClosing(javax.swing.event.InternalFrameEvent evt) {
+                formInternalFrameClosing(evt);
+            }
+            public void internalFrameDeactivated(javax.swing.event.InternalFrameEvent evt) {
+            }
+            public void internalFrameDeiconified(javax.swing.event.InternalFrameEvent evt) {
+            }
+            public void internalFrameIconified(javax.swing.event.InternalFrameEvent evt) {
+            }
+            public void internalFrameOpened(javax.swing.event.InternalFrameEvent evt) {
+            }
+        });
 
-        searchPanel.setMinimumSize(new java.awt.Dimension(0, 0));
         searchPanel.setPreferredSize(new java.awt.Dimension(787, 250));
 
         sizeLabel.setText("Tamanho");
@@ -291,9 +377,6 @@ public class StockListView extends javax.swing.JInternalFrame {
             .addGroup(searchPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, searchPanelLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(searchButton))
                     .addGroup(searchPanelLayout.createSequentialGroup()
                         .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(nameLabel)
@@ -311,7 +394,10 @@ public class StockListView extends javax.swing.JInternalFrame {
                             .addComponent(sizeTextField, javax.swing.GroupLayout.Alignment.TRAILING)))
                     .addGroup(searchPanelLayout.createSequentialGroup()
                         .addComponent(codeLabel)
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, searchPanelLayout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(searchButton)))
                 .addContainerGap())
         );
         searchPanelLayout.setVerticalGroup(
@@ -371,6 +457,7 @@ public class StockListView extends javax.swing.JInternalFrame {
                 return canEdit [columnIndex];
             }
         });
+        stockTable.setToolTipText("");
         stockTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         stockTable.getTableHeader().setReorderingAllowed(false);
         stockTable.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -379,21 +466,29 @@ public class StockListView extends javax.swing.JInternalFrame {
             }
         });
         stockScrollPane.setViewportView(stockTable);
-        if (stockTable.getColumnModel().getColumnCount() > 0) {
-            stockTable.getColumnModel().getColumn(0).setResizable(false);
-            stockTable.getColumnModel().getColumn(1).setResizable(false);
-            stockTable.getColumnModel().getColumn(2).setResizable(false);
-            stockTable.getColumnModel().getColumn(3).setResizable(false);
-            stockTable.getColumnModel().getColumn(4).setResizable(false);
-            stockTable.getColumnModel().getColumn(5).setResizable(false);
-            stockTable.getColumnModel().getColumn(6).setResizable(false);
-            stockTable.getColumnModel().getColumn(7).setResizable(false);
-            stockTable.getColumnModel().getColumn(8).setResizable(false);
-        }
 
         getContentPane().add(stockScrollPane, java.awt.BorderLayout.CENTER);
 
         utilsPanel.setLayout(new java.awt.BorderLayout());
+
+        pageComboBox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                pageComboBoxActionPerformed(evt);
+            }
+        });
+        utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
+
+        saleAndPricePanel.setLayout(new java.awt.BorderLayout());
+
+        pricePanel.setLayout(new java.awt.BorderLayout());
+
+        priceLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        priceLabel.setText("Valor total: R$ 0  ");
+        pricePanel.add(priceLabel, java.awt.BorderLayout.CENTER);
+
+        saleAndPricePanel.add(pricePanel, java.awt.BorderLayout.PAGE_START);
+
+        salePanel.setLayout(new java.awt.GridLayout());
 
         deleteButton.setText("Apagar");
         deleteButton.setEnabled(false);
@@ -407,33 +502,33 @@ public class StockListView extends javax.swing.JInternalFrame {
                 deleteButtonKeyPressed(evt);
             }
         });
-        utilsPanel.add(deleteButton, java.awt.BorderLayout.PAGE_END);
+        salePanel.add(deleteButton);
 
-        pageComboBox.addActionListener(new java.awt.event.ActionListener() {
+        saleButton.setText("Vender");
+        saleButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                pageComboBoxActionPerformed(evt);
+                saleButtonActionPerformed(evt);
             }
         });
-        utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
+        saleButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                saleButtonKeyPressed(evt);
+            }
+        });
+        salePanel.add(saleButton);
+
+        saleAndPricePanel.add(salePanel, java.awt.BorderLayout.CENTER);
+
+        utilsPanel.add(saleAndPricePanel, java.awt.BorderLayout.PAGE_END);
 
         getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
         setBounds(0, 0, 800, 600);
     }// </editor-fold>//GEN-END:initComponents
 
-    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
-        this.selectedRow = -1;
-        this.deleteButton.setEnabled(false);
-        this.currentPage = 0;
-
-        if (this.pageComboBox.getItemCount() > 0) {
-            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
-        }
-
-        if (!isLookingFor) {
-            this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
-        }
-    }//GEN-LAST:event_pageComboBoxActionPerformed
+    private void formInternalFrameClosing(javax.swing.event.InternalFrameEvent evt) {//GEN-FIRST:event_formInternalFrameClosing
+        DashboardView.openInternalFrame(new SaleView(this.cart));
+    }//GEN-LAST:event_formInternalFrameClosing
 
     private void sizeTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sizeTextFieldKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -471,15 +566,15 @@ public class StockListView extends javax.swing.JInternalFrame {
         }
     }//GEN-LAST:event_brandTextFieldKeyPressed
 
+    private void searchButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchButtonActionPerformed
+        this.search();
+    }//GEN-LAST:event_searchButtonActionPerformed
+
     private void searchButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_searchButtonKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             this.search();
         }
     }//GEN-LAST:event_searchButtonKeyPressed
-
-    private void searchButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchButtonActionPerformed
-        this.search();
-    }//GEN-LAST:event_searchButtonActionPerformed
 
     private void stockTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_stockTableMouseReleased
         if (this.selectedRow == this.stockTable.getSelectedRow()) {
@@ -491,6 +586,34 @@ public class StockListView extends javax.swing.JInternalFrame {
             this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
         }
     }//GEN-LAST:event_stockTableMouseReleased
+
+    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
+        this.selectedRow = -1;
+        this.deleteButton.setEnabled(false);
+        this.currentPage = 0;
+
+        if (this.pageComboBox.getItemCount() > 0) {
+            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
+        }
+
+        if (!isLookingFor) {
+            if (this.cart.isEmpty()) {
+                this.loadStockList(new ArrayList<>());
+            } else {
+                this.loadStockList(this.stockService.findAllOnCart(this.cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+            }
+        }
+    }//GEN-LAST:event_pageComboBoxActionPerformed
+
+    private void saleButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saleButtonActionPerformed
+        this.sale();
+    }//GEN-LAST:event_saleButtonActionPerformed
+
+    private void saleButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saleButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.sale();
+        }
+    }//GEN-LAST:event_saleButtonKeyPressed
 
     private void deleteButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_deleteButtonKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -516,6 +639,11 @@ public class StockListView extends javax.swing.JInternalFrame {
     private javax.swing.JLabel nameLabel;
     private javax.swing.JTextField nameTextField;
     private javax.swing.JComboBox<String> pageComboBox;
+    private javax.swing.JLabel priceLabel;
+    private javax.swing.JPanel pricePanel;
+    private javax.swing.JPanel saleAndPricePanel;
+    private javax.swing.JButton saleButton;
+    private javax.swing.JPanel salePanel;
     private javax.swing.JButton searchButton;
     private javax.swing.JPanel searchPanel;
     private javax.swing.JLabel sizeLabel;

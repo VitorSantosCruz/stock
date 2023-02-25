@@ -8,7 +8,6 @@ import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.Product;
 import br.com.vcruz.stock.model.ProductInfo;
 import br.com.vcruz.stock.model.Stock;
-import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.utils.DateConverterUtils;
 import java.io.IOException;
 import java.sql.Connection;
@@ -87,6 +86,112 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
+    public List<Stock> findAllExcept(List<Map<String, String>> cart, int quantity, int page) {
+        String query = """
+                       select *, count(*) stockQuantity from stock join product join product_info 
+                            where product.id = stock.product_id and product_info.id = stock.product_info_id and stock.is_deleted = false and stock.sale_id is null and
+                            stock.id not in (select id from (
+                       """;
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += """
+                    ) temporary_table)
+                    group by product.id, product_info.size, product_info.color limit ? offset ?;
+                """;
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
+            }
+
+            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, (page * quantity));
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findAllExcept] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Stock> findAllOnCart(List<Map<String, String>> cart, int quantity, int page) {
+        String query = """
+                       select *, count(*) stockQuantity from stock join product join product_info 
+                            where product.id = stock.product_id and product_info.id = stock.product_info_id and stock.is_deleted = false and stock.sale_id is null and
+                            stock.id in (select id from (
+                       """;
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += """
+                    ) temporary_table)
+                    group by product.id, product_info.size, product_info.color limit ? offset ?;
+                """;
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
+            }
+
+            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, (page * quantity));
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findAllExcept] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
     public List<Stock> findBy(Map<String, String> featureMap, int quantity, int page) {
         String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
 
@@ -103,14 +208,143 @@ public class StockDalImp implements StockDal {
             }
         }
 
-        query += ") and stock.sale_id is null and stock.is_deleted = false group by product.id, product_info.size, product_info.color  limit ? offset ?";
+        query += ") and stock.sale_id is null and stock.is_deleted = false group by product.id, product_info.size, product_info.color limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             int i = 0;
 
             for (String value : featureMap.values()) {
-                i++;
-                preparedStatement.setString(i, "%" + value + "%");
+                preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, (page * quantity));
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findByProductFeatures] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Stock> findByExcept(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
+        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
+
+        for (int i = 0; i < featureMap.keySet().size(); i++) {
+            String key = (String) featureMap.keySet().toArray()[i];
+            if (key.equals("size") || key.equals("color")) {
+                query += "product_info." + key + " like ?";
+            } else {
+                query += "product." + key + " like ?";
+            }
+
+            if (i + 1 < featureMap.keySet().size()) {
+                query += " and ";
+            }
+        }
+
+        query += ") and stock.sale_id is null and stock.is_deleted = false and stock.id not in (select id from (";
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += ") temporary_table) group by product.id, product_info.size, product_info.color limit ? offset ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+
+            for (String value : featureMap.values()) {
+                preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
+            }
+
+            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, (page * quantity));
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findByProductFeatures] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Stock> findByOnCart(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
+        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
+
+        for (int i = 0; i < featureMap.keySet().size(); i++) {
+            String key = (String) featureMap.keySet().toArray()[i];
+            if (key.equals("size") || key.equals("color")) {
+                query += "product_info." + key + " like ?";
+            } else {
+                query += "product." + key + " like ?";
+            }
+
+            if (i + 1 < featureMap.keySet().size()) {
+                query += " and ";
+            }
+        }
+
+        query += ") and stock.sale_id is null and stock.is_deleted = false and stock.id in (select id from (";
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += ") temporary_table) group by product.id, product_info.size, product_info.color limit ? offset ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+
+            for (String value : featureMap.values()) {
+                preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
             }
 
             preparedStatement.setInt(++i, quantity);
@@ -152,7 +386,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public void deleteBy(int quantity, String size, String color, String productCode) {
-        String query = "update stock s join product p join product_info pi set s.last_modified_date = now(), s.is_deleted = true where s.sale_id is null and s.product_id = p.id and s.product_info_id = pi.id and pi.size = ? and pi.color = ? and p.product_code = ? and s.is_deleted = false limit ?";
+        String query = "update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, size);
@@ -170,7 +404,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public void deleteAllByProductCode(String productCode) {
-        String query = "update stock s join product p join product_info pi set s.last_modified_date = now(), s.is_deleted = true where s.sale_id is null and s.product_id = p.id and s.product_info_id = pi.id and p.product_code = ? and s.is_deleted = false";
+        String query = "update stock s join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = pi.id and product.product_code = ? and stock.sale_id is null and stock.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, productCode);
@@ -185,7 +419,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public int pageQuantity(int quantity, Map<String, String> featureMap) {
-        String query = "select ceiling(count(*) / ?) pageQuantity from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
+        String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id pageQuantity from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
@@ -200,7 +434,7 @@ public class StockDalImp implements StockDal {
             }
         }
 
-        query += ") and stock.is_deleted = false group by product.id, product_info.size, product_info.color";
+        query += ") and stock.is_deleted = false group by product.id, product_info.size, product_info.color) temporary_table";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             int i = 0;
@@ -208,6 +442,142 @@ public class StockDalImp implements StockDal {
 
             for (String value : featureMap.values()) {
                 preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt("pageQuantity");
+            } catch (SQLException e) {
+                throw e;
+            }
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[pageQuantity] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int pageQuantityExcept(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap) {
+        String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
+
+        for (int i = 0; i < featureMap.keySet().size(); i++) {
+            String key = (String) featureMap.keySet().toArray()[i];
+            if (key.equals("size") || key.equals("color")) {
+                query += "product_info." + key + " like ?";
+            } else {
+                query += "product." + key + " like ?";
+            }
+
+            if (i + 1 < featureMap.keySet().size()) {
+                query += " and ";
+            }
+        }
+
+        query += ") and stock.is_deleted = false and stock.id not in (select id from (";
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += ") temporary_table) group by product.id, product_info.size, product_info.color) temporary_table";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+            preparedStatement.setInt(++i, quantity);
+
+            for (String value : featureMap.values()) {
+                preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
+            }
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt("pageQuantity");
+            } catch (SQLException e) {
+                throw e;
+            }
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[pageQuantity] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int pageQuantityOnCart(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap) {
+        String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
+
+        for (int i = 0; i < featureMap.keySet().size(); i++) {
+            String key = (String) featureMap.keySet().toArray()[i];
+            if (key.equals("size") || key.equals("color")) {
+                query += "product_info." + key + " like ?";
+            } else {
+                query += "product." + key + " like ?";
+            }
+
+            if (i + 1 < featureMap.keySet().size()) {
+                query += " and ";
+            }
+        }
+
+        query += ") and stock.is_deleted = false and stock.id in (select id from (";
+
+        for (int i = 0; i < cart.size(); i++) {
+            query += """
+                        (
+                            select stock.id from stock join product join product_info
+                                where product.id = stock.product_id and
+                                product_info.id = stock.product_info_id and
+                                stock.is_deleted = false and
+                                stock.sale_id is null and
+                                product.product_code = ? and
+                                product_info.size = ? and
+                                product_info.color = ? limit ?
+                        )
+                    """;
+
+            if (i + 1 < cart.size()) {
+                query += " union ";
+            }
+        }
+
+        query += ") temporary_table) group by product.id, product_info.size, product_info.color) temporary_table";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            int i = 0;
+            preparedStatement.setInt(++i, quantity);
+
+            for (String value : featureMap.values()) {
+                preparedStatement.setString(++i, "%" + value + "%");
+            }
+
+            for (Map<String, String> product : cart) {
+                preparedStatement.setString(++i, product.get("productCode"));
+                preparedStatement.setString(++i, product.get("size"));
+                preparedStatement.setString(++i, product.get("color"));
+                preparedStatement.setInt(++i, Integer.parseInt(product.get("quantity")));
             }
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
@@ -246,7 +616,6 @@ public class StockDalImp implements StockDal {
 
         Product product = ProductDalImp.getProductFromResultSet(resultSet);
         ProductInfo productInfo = ProductInfoDalImp.getProductInfoFromResultSet(resultSet);
-        User creator = UserDalImp.getUserFromResultSet(resultSet);
 
         return Stock.builder()
                 .createdDate(createdDate)
@@ -255,7 +624,6 @@ public class StockDalImp implements StockDal {
                 .isDeleted(isDeleted)
                 .product(product)
                 .productInfo(productInfo)
-                .creator(creator)
                 .quantity(quantity)
                 .build();
     }
