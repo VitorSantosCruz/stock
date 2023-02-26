@@ -25,5 +25,5 @@ public interface ProductDal {
 
     void deleteById(Long id);
 
-    int pageQuantity(int quantity, Map<String, String> featureMap);
+    int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap);
 }

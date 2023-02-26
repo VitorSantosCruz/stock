@@ -77,15 +77,15 @@ public class UserService {
         this.userDal.deleteById(id);
     }
 
-    public int pageQuantity(int quantity) {
-        return this.pageQuantity(quantity, "");
+    public int pageQuantity(int numberOfItemsPerPage) {
+        return this.pageQuantity(numberOfItemsPerPage, "");
     }
 
-    public int pageQuantity(int quantity, String feature) {
-        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (quantity == 1 ? "item" : "itens cada."), quantity);
+    public int pageQuantity(int numberOfItemsPerPage, String feature) {
+        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (numberOfItemsPerPage == 1 ? "item" : "itens cada."), numberOfItemsPerPage);
 
         try {
-            return this.userDal.pageQuantity(quantity, feature);
+            return this.userDal.pageQuantity(numberOfItemsPerPage, feature);
         } catch (InternalException e) {
             return 0;
         }

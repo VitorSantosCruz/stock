@@ -450,9 +450,13 @@ public class ProductListView extends javax.swing.JInternalFrame {
         this.deleteButton.setEnabled(false);
         this.editButton.setEnabled(false);
         this.addToStockButton.setEnabled(false);
+        this.currentPage = 0;
 
-        if (this.pageComboBox.getItemCount() > 0 && !isLookingFor) {
+        if (this.pageComboBox.getItemCount() > 0) {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
+        }
+
+        if (!isLookingFor) {
             this.loadProductList(this.productService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
         }
     }//GEN-LAST:event_pageComboBoxActionPerformed

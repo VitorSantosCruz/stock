@@ -1,6 +1,5 @@
 package br.com.vcruz.stock.view.internal;
 
-import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.model.Product;
 import br.com.vcruz.stock.model.ProductInfo;
 import br.com.vcruz.stock.model.Stock;
@@ -8,9 +7,12 @@ import br.com.vcruz.stock.service.StockService;
 import br.com.vcruz.stock.utils.PageableUtils;
 import br.com.vcruz.stock.view.DashboardView;
 import java.awt.event.KeyEvent;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
@@ -18,31 +20,63 @@ import javax.swing.table.DefaultTableModel;
  *
  * @author vcruz
  */
-public class StockListView extends javax.swing.JInternalFrame {
+public class SaleView extends javax.swing.JInternalFrame {
 
     private final StockService stockService;
     private final int CODE_COLUMN_POSITION;
     private final int SIZE_COLUMN_POSITION;
     private final int COLOR_COLUMN_POSITION;
+    private final int PRICE_COLUMN_POSITION;
     private final int QUANTITY_COLUMN_POSITION;
+    private List<Map<String, String>> cart;
     private int currentPage;
     private boolean isLookingFor;
     private int selectedRow;
 
     /**
-     * Creates new form StockListView
+     * Creates new form SaleView
      */
-    public StockListView() {
+    public SaleView() {
         this.CODE_COLUMN_POSITION = 1;
         this.SIZE_COLUMN_POSITION = 2;
         this.COLOR_COLUMN_POSITION = 3;
+        this.PRICE_COLUMN_POSITION = 7;
         this.QUANTITY_COLUMN_POSITION = 8;
         this.stockService = new StockService();
+        this.cart = new ArrayList<>();
         this.selectedRow = -1;
 
         initComponents();
 
         int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        this.fillCombobok(pageQuantity);
+    }
+
+    /**
+     * Creates new form SaleView
+     *
+     * @param cart
+     */
+    public SaleView(List<Map<String, String>> cart) {
+        this.CODE_COLUMN_POSITION = 1;
+        this.SIZE_COLUMN_POSITION = 2;
+        this.COLOR_COLUMN_POSITION = 3;
+        this.PRICE_COLUMN_POSITION = 7;
+        this.QUANTITY_COLUMN_POSITION = 8;
+        this.stockService = new StockService();
+        this.cart = cart;
+        this.selectedRow = -1;
+
+        initComponents();
+        int pageQuantity;
+
+        if (cart.isEmpty()) {
+            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        } else {
+            this.goToCartButton.setEnabled(true);
+            pageQuantity = this.stockService.pageQuantityExcept(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        }
+
         this.fillCombobok(pageQuantity);
     }
 
@@ -66,16 +100,29 @@ public class StockListView extends javax.swing.JInternalFrame {
                 && featureMap.get("model") == null
                 && featureMap.get("brand") == null) {
             this.isLookingFor = false;
-            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+
+            if (this.cart.isEmpty()) {
+                pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+            } else {
+                pageQuantity = this.stockService.pageQuantityExcept(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+            }
         } else {
             this.isLookingFor = true;
-            pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            if (this.cart.isEmpty()) {
+                pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            } else {
+                pageQuantity = this.stockService.pageQuantityExcept(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+            }
         }
 
         this.fillCombobok(pageQuantity);
 
         if (isLookingFor) {
-            this.loadStockList(this.stockService.findBy(featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            if (this.cart.isEmpty()) {
+                this.loadStockList(this.stockService.findBy(featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            } else {
+                this.loadStockList(this.stockService.findByExcept(cart, featureMap, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
+            }
         }
     }
 
@@ -115,53 +162,73 @@ public class StockListView extends javax.swing.JInternalFrame {
         return featureMap;
     }
 
-    private void delete() {
-        String quantityString = JOptionPane.showInputDialog(this, "Quantos produtos você deseja excluir?", "Quantidade a ser excluída", JOptionPane.INFORMATION_MESSAGE);
-        int quantityToBeDeleted;
+    private void addToCart() {
+        String quantityString = JOptionPane.showInputDialog(this, "Quantos produtos iguais a esse você deseja adicionar ao carrinho?", "Quantidade a ser adicionada", JOptionPane.INFORMATION_MESSAGE);
+        int quantityToBeAdded;
 
         try {
             if (quantityString == null || quantityString.isBlank()) {
                 return;
             }
 
-            quantityToBeDeleted = Integer.parseInt(quantityString);
             int productQuantity = (Integer) this.stockTable.getValueAt(this.selectedRow, this.QUANTITY_COLUMN_POSITION);
 
-            if (quantityToBeDeleted > productQuantity) {
-                JOptionPane.showMessageDialog(this, "A quantidade a ser excluída não pode ser mair que a quantidade disponível!", "Erro", JOptionPane.ERROR_MESSAGE);
-                this.delete();
+            quantityToBeAdded = Integer.parseInt(quantityString);
+
+            if (quantityToBeAdded > productQuantity) {
+                JOptionPane.showMessageDialog(this, "A quantidade a ser adicionada não pode ser mair que a quantidade disponível!", "Erro", JOptionPane.ERROR_MESSAGE);
+                this.addToCart();
                 return;
             }
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this, "É necessário que um número interiro seja informado!", "Erro", JOptionPane.ERROR_MESSAGE);
-            this.delete();
+            this.addToCart();
             return;
         }
 
-        Object[] options = {"Sim", "Não"};
-        int delete = JOptionPane.showOptionDialog(this, "Tem certeza que deseja apagar esse produto do estoque?", "Apagar", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        String productCode = (String) this.stockTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
+        String productSize = (String) this.stockTable.getValueAt(this.selectedRow, this.SIZE_COLUMN_POSITION);
+        String productColor = (String) this.stockTable.getValueAt(this.selectedRow, this.COLOR_COLUMN_POSITION);
+        BigDecimal productPrice = (BigDecimal) this.stockTable.getValueAt(this.selectedRow, this.PRICE_COLUMN_POSITION);
 
-        if (JOptionPane.YES_OPTION == delete) {
-            String productCode = (String) this.stockTable.getValueAt(this.selectedRow, this.CODE_COLUMN_POSITION);
-            String productSize = (String) this.stockTable.getValueAt(this.selectedRow, this.SIZE_COLUMN_POSITION);
-            String productColor = (String) this.stockTable.getValueAt(this.selectedRow, this.COLOR_COLUMN_POSITION);
+        Map<String, String> product = new HashMap<>();
+        product.put("productCode", productCode);
+        product.put("size", productSize);
+        product.put("color", productColor);
+        product.put("unitPrice", productPrice.toString());
+        product.put("quantity", String.valueOf(quantityToBeAdded));
 
-            try {
-                this.stockService.deleteBy(quantityToBeDeleted, productSize, productColor, productCode);
-                int pageQuantity = this.stockService.pageQuantity(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        Map<String, String> productFound = new HashMap<>();
+        this.cart = this.cart.stream().map(cartProduct -> {
+            if (cartProduct.get("productCode").equals(productCode)
+                    && cartProduct.get("size").equals(productSize)
+                    && cartProduct.get("color").equals(productColor)) {
+                int cartProductQuantity = Integer.parseInt(cartProduct.get("quantity"));
 
-                if (pageQuantity == 0) {
-                    this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, PageableUtils.FIRST_PAGE));
-                } else if (isLookingFor) {
-                    this.search();
-                }
-
-                this.fillCombobok(pageQuantity);
-                JOptionPane.showMessageDialog(this, "Produto apagado!", "Apagar produto", JOptionPane.INFORMATION_MESSAGE);
-            } catch (InternalException e) {
-                JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível apagar o produto!", "Erro", JOptionPane.ERROR_MESSAGE);
+                cartProduct.put("quantity", String.valueOf(cartProductQuantity + quantityToBeAdded));
+                productFound.putAll(cartProduct);
             }
+
+            return cartProduct;
+        }).collect(Collectors.toCollection(ArrayList::new));
+
+        if (this.cart.isEmpty() || productFound.isEmpty()) {
+            this.cart.add(product);
         }
+
+        int pageQuantity;
+
+        if (isLookingFor) {
+            Map<String, String> featureMap = this.getFeatureMap();
+            pageQuantity = this.stockService.pageQuantityExcept(this.cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
+
+        } else {
+            pageQuantity = this.stockService.pageQuantityExcept(this.cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
+        }
+
+        this.fillCombobok(pageQuantity);
+
+        this.goToCartButton.setEnabled(true);
     }
 
     private void loadStockList(List<Stock> stocks) {
@@ -216,12 +283,13 @@ public class StockListView extends javax.swing.JInternalFrame {
         stockScrollPane = new javax.swing.JScrollPane();
         stockTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
-        deleteButton = new javax.swing.JButton();
         pageComboBox = new javax.swing.JComboBox<>();
+        cartPanel = new javax.swing.JPanel();
+        goToCartButton = new javax.swing.JButton();
+        addToCartButton = new javax.swing.JButton();
 
         setClosable(true);
 
-        searchPanel.setMinimumSize(new java.awt.Dimension(0, 0));
         searchPanel.setPreferredSize(new java.awt.Dimension(787, 250));
 
         sizeLabel.setText("Tamanho");
@@ -291,9 +359,6 @@ public class StockListView extends javax.swing.JInternalFrame {
             .addGroup(searchPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, searchPanelLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(searchButton))
                     .addGroup(searchPanelLayout.createSequentialGroup()
                         .addGroup(searchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(nameLabel)
@@ -311,7 +376,10 @@ public class StockListView extends javax.swing.JInternalFrame {
                             .addComponent(sizeTextField, javax.swing.GroupLayout.Alignment.TRAILING)))
                     .addGroup(searchPanelLayout.createSequentialGroup()
                         .addComponent(codeLabel)
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, searchPanelLayout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(searchButton)))
                 .addContainerGap())
         );
         searchPanelLayout.setVerticalGroup(
@@ -379,35 +447,10 @@ public class StockListView extends javax.swing.JInternalFrame {
             }
         });
         stockScrollPane.setViewportView(stockTable);
-        if (stockTable.getColumnModel().getColumnCount() > 0) {
-            stockTable.getColumnModel().getColumn(0).setResizable(false);
-            stockTable.getColumnModel().getColumn(1).setResizable(false);
-            stockTable.getColumnModel().getColumn(2).setResizable(false);
-            stockTable.getColumnModel().getColumn(3).setResizable(false);
-            stockTable.getColumnModel().getColumn(4).setResizable(false);
-            stockTable.getColumnModel().getColumn(5).setResizable(false);
-            stockTable.getColumnModel().getColumn(6).setResizable(false);
-            stockTable.getColumnModel().getColumn(7).setResizable(false);
-            stockTable.getColumnModel().getColumn(8).setResizable(false);
-        }
 
         getContentPane().add(stockScrollPane, java.awt.BorderLayout.CENTER);
 
         utilsPanel.setLayout(new java.awt.BorderLayout());
-
-        deleteButton.setText("Apagar");
-        deleteButton.setEnabled(false);
-        deleteButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                deleteButtonActionPerformed(evt);
-            }
-        });
-        deleteButton.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                deleteButtonKeyPressed(evt);
-            }
-        });
-        utilsPanel.add(deleteButton, java.awt.BorderLayout.PAGE_END);
 
         pageComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -416,24 +459,42 @@ public class StockListView extends javax.swing.JInternalFrame {
         });
         utilsPanel.add(pageComboBox, java.awt.BorderLayout.CENTER);
 
+        cartPanel.setLayout(new java.awt.GridLayout());
+
+        goToCartButton.setText("Ir para o carrinho");
+        goToCartButton.setEnabled(false);
+        goToCartButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                goToCartButtonActionPerformed(evt);
+            }
+        });
+        goToCartButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                goToCartButtonKeyPressed(evt);
+            }
+        });
+        cartPanel.add(goToCartButton);
+
+        addToCartButton.setText("Adicionar ao carrinho");
+        addToCartButton.setEnabled(false);
+        addToCartButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addToCartButtonActionPerformed(evt);
+            }
+        });
+        addToCartButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                addToCartButtonKeyPressed(evt);
+            }
+        });
+        cartPanel.add(addToCartButton);
+
+        utilsPanel.add(cartPanel, java.awt.BorderLayout.PAGE_END);
+
         getContentPane().add(utilsPanel, java.awt.BorderLayout.PAGE_END);
 
         setBounds(0, 0, 800, 600);
     }// </editor-fold>//GEN-END:initComponents
-
-    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
-        this.selectedRow = -1;
-        this.deleteButton.setEnabled(false);
-        this.currentPage = 0;
-
-        if (this.pageComboBox.getItemCount() > 0) {
-            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
-        }
-
-        if (!isLookingFor) {
-            this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
-        }
-    }//GEN-LAST:event_pageComboBoxActionPerformed
 
     private void sizeTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sizeTextFieldKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -471,46 +532,76 @@ public class StockListView extends javax.swing.JInternalFrame {
         }
     }//GEN-LAST:event_brandTextFieldKeyPressed
 
+    private void searchButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchButtonActionPerformed
+        this.search();
+    }//GEN-LAST:event_searchButtonActionPerformed
+
     private void searchButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_searchButtonKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             this.search();
         }
     }//GEN-LAST:event_searchButtonKeyPressed
 
-    private void searchButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchButtonActionPerformed
-        this.search();
-    }//GEN-LAST:event_searchButtonActionPerformed
-
     private void stockTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_stockTableMouseReleased
         if (this.selectedRow == this.stockTable.getSelectedRow()) {
             this.stockTable.clearSelection();
             this.selectedRow = -1;
-            this.deleteButton.setEnabled(false);
+            this.addToCartButton.setEnabled(false);
         } else {
             this.selectedRow = this.stockTable.getSelectedRow();
-            this.deleteButton.setEnabled(true && DashboardView.loggedUser.isRoot());
+            this.addToCartButton.setEnabled(true && DashboardView.loggedUser.isRoot());
         }
     }//GEN-LAST:event_stockTableMouseReleased
 
-    private void deleteButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_deleteButtonKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            this.delete();
-        }
-    }//GEN-LAST:event_deleteButtonKeyPressed
+    private void addToCartButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addToCartButtonActionPerformed
+        this.addToCart();
+    }//GEN-LAST:event_addToCartButtonActionPerformed
 
-    private void deleteButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteButtonActionPerformed
-        this.delete();
-    }//GEN-LAST:event_deleteButtonActionPerformed
+    private void addToCartButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addToCartButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.addToCart();
+        }
+    }//GEN-LAST:event_addToCartButtonKeyPressed
+
+    private void pageComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pageComboBoxActionPerformed
+        this.selectedRow = -1;
+        this.addToCartButton.setEnabled(false);
+        this.currentPage = 0;
+
+        if (this.pageComboBox.getItemCount() > 0) {
+            this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
+        }
+
+        if (!isLookingFor) {
+            if (this.cart.isEmpty()) {
+                this.loadStockList(this.stockService.findAll(PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+            } else {
+                this.loadStockList(this.stockService.findAllExcept(this.cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+            }
+        }
+    }//GEN-LAST:event_pageComboBoxActionPerformed
+
+    private void goToCartButtonKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_goToCartButtonKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            DashboardView.openInternalFrame(new CartView(this.cart));
+        }
+    }//GEN-LAST:event_goToCartButtonKeyPressed
+
+    private void goToCartButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_goToCartButtonActionPerformed
+        DashboardView.openInternalFrame(new CartView(this.cart));
+    }//GEN-LAST:event_goToCartButtonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton addToCartButton;
     private javax.swing.JLabel brandLabel;
     private javax.swing.JTextField brandTextField;
+    private javax.swing.JPanel cartPanel;
     private javax.swing.JLabel codeLabel;
     private javax.swing.JTextField codeTextField;
     private javax.swing.JLabel colorLabel;
     private javax.swing.JTextField colorTextField;
-    private javax.swing.JButton deleteButton;
+    private javax.swing.JButton goToCartButton;
     private javax.swing.JLabel modelLabel;
     private javax.swing.JTextField modelTextField;
     private javax.swing.JLabel nameLabel;

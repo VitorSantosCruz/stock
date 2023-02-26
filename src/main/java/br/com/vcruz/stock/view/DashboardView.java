@@ -3,6 +3,8 @@ package br.com.vcruz.stock.view;
 import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.view.internal.ProductListView;
 import br.com.vcruz.stock.view.internal.ProductRegisterView;
+import br.com.vcruz.stock.view.internal.SaleListView;
+import br.com.vcruz.stock.view.internal.SaleView;
 import br.com.vcruz.stock.view.internal.StockListView;
 import br.com.vcruz.stock.view.internal.UserListView;
 import br.com.vcruz.stock.view.internal.UserRegisterView;
@@ -69,6 +71,9 @@ public class DashboardView extends javax.swing.JFrame {
         jMenuItem1 = new javax.swing.JMenuItem();
         rootWindowjDesktopPane = new javax.swing.JDesktopPane();
         jMenuBar1 = new javax.swing.JMenuBar();
+        saleMenu = new javax.swing.JMenu();
+        saleMenuItem = new javax.swing.JMenuItem();
+        saleListMenuItem = new javax.swing.JMenuItem();
         stockMenu = new javax.swing.JMenu();
         stockListMenuItem = new javax.swing.JMenuItem();
         productMenu = new javax.swing.JMenu();
@@ -92,6 +97,26 @@ public class DashboardView extends javax.swing.JFrame {
 
         rootWindowjDesktopPane.setLayout(new java.awt.GridLayout(1, 0));
         getContentPane().add(rootWindowjDesktopPane, java.awt.BorderLayout.CENTER);
+
+        saleMenu.setText("Venda");
+
+        saleMenuItem.setText("Vender");
+        saleMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saleMenuItemActionPerformed(evt);
+            }
+        });
+        saleMenu.add(saleMenuItem);
+
+        saleListMenuItem.setText("Listagem");
+        saleListMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saleListMenuItemActionPerformed(evt);
+            }
+        });
+        saleMenu.add(saleListMenuItem);
+
+        jMenuBar1.add(saleMenu);
 
         stockMenu.setText("Estoque");
 
@@ -201,6 +226,14 @@ public class DashboardView extends javax.swing.JFrame {
         DashboardView.openInternalFrame(new StockListView());
     }//GEN-LAST:event_stockListMenuItemActionPerformed
 
+    private void saleMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saleMenuItemActionPerformed
+        DashboardView.openInternalFrame(new SaleView());
+    }//GEN-LAST:event_saleMenuItemActionPerformed
+
+    private void saleListMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saleListMenuItemActionPerformed
+        DashboardView.openInternalFrame(new SaleListView());
+    }//GEN-LAST:event_saleListMenuItemActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu exitMenu;
     private javax.swing.JMenuBar jMenuBar1;
@@ -209,6 +242,9 @@ public class DashboardView extends javax.swing.JFrame {
     private javax.swing.JMenu productMenu;
     private javax.swing.JMenuItem productRegisterMenuItem;
     private static javax.swing.JDesktopPane rootWindowjDesktopPane;
+    private javax.swing.JMenuItem saleListMenuItem;
+    private javax.swing.JMenu saleMenu;
+    private javax.swing.JMenuItem saleMenuItem;
     private javax.swing.JMenuItem stockListMenuItem;
     private javax.swing.JMenu stockMenu;
     private javax.swing.JMenuItem userListMenuItem;

@@ -17,7 +17,7 @@ import javax.swing.JOptionPane;
 public class ProductRegisterView extends javax.swing.JInternalFrame {
 
     private final ProductService productService;
-    private Product product;
+    private final Product product;
     private final boolean isEditing;
 
     /**

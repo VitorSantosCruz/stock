@@ -201,11 +201,11 @@ public class UserDalImp implements UserDal {
     }
 
     @Override
-    public int pageQuantity(int quantity, String feature) {
-        String query = "select ceiling(count(*) / ?) as pageQuantity from user where (id = ? or name like ? or login like ?) and is_deleted = false;";
+    public int pageQuantity(int numberOfItemsPerPage, String feature) {
+        String query = "select ceiling(count(*) / ?) as pageQuantity from user where (id = ? or name like ? or login like ?) and is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, quantity);
+            preparedStatement.setInt(1, numberOfItemsPerPage);
             preparedStatement.setString(2, "%" + feature + "%");
             preparedStatement.setString(3, "%" + feature + "%");
             preparedStatement.setString(4, "%" + feature + "%");

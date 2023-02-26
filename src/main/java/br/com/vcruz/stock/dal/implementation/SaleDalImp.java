@@ -7,7 +7,6 @@ import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.Sale;
 import br.com.vcruz.stock.model.Stock;
-import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.utils.DateConverterUtils;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -17,9 +16,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -30,36 +32,57 @@ import lombok.extern.log4j.Log4j2;
 public class SaleDalImp implements SaleDal {
 
     @Override
-    public List<Long> save(int quantity, BigDecimal price, PaymentMethod formOfPayment, BigDecimal discount, Long createdBy) {
-        String query = "insert into sale (price, formOfPayment, discount, createdBy) values (?, ?, ?, ?)";
+    public Sale save(List<Map<String, String>> cart, BigDecimal price, PaymentMethod formOfPayment, BigDecimal discount, Long createdBy) {
+        String querySale = "insert into sale (price, form_of_payment, discount, seller_id) values (?, ?, ?, ?)";
+        String queryStockSaleIdUpdate = "update stock join product join product_info set stock.last_modified_date = now(), stock.sale_id = ? where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?";
 
-        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
-            List<Long> saleIdList = new ArrayList<>();
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatementSale = connection.prepareStatement(querySale, Statement.RETURN_GENERATED_KEYS)) {
+            Long saleId;
             connection.setAutoCommit(false);
 
-            for (int i = 0; i < quantity; i++) {
-                try {
-                    preparedStatement.setBigDecimal(1, price);
-                    preparedStatement.setString(2, formOfPayment.toString());
-                    preparedStatement.setBigDecimal(3, discount);
-                    preparedStatement.setLong(4, createdBy);
+            try {
+                preparedStatementSale.setBigDecimal(1, price);
+                preparedStatementSale.setString(2, formOfPayment.toString());
+                preparedStatementSale.setBigDecimal(3, discount);
+                preparedStatementSale.setLong(4, createdBy);
 
-                    preparedStatement.executeUpdate();
+                preparedStatementSale.executeUpdate();
 
-                    try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                        generatedKeys.next();
-                        saleIdList.add(generatedKeys.getLong(1));
-                    } catch (SQLException e) {
-                        throw e;
-                    }
+                try (ResultSet generatedKeys = preparedStatementSale.getGeneratedKeys()) {
+                    generatedKeys.next();
+                    saleId = generatedKeys.getLong(1);
                 } catch (SQLException e) {
-                    connection.rollback();
                     throw e;
                 }
+
+                try (PreparedStatement preparedStatementStockSaleIdUpdate = connection.prepareStatement(queryStockSaleIdUpdate)) {
+                    connection.setAutoCommit(false);
+                    for (Map<String, String> product : cart) {
+                        int quantity = Integer.parseInt(product.get("quantity"));
+
+                        preparedStatementStockSaleIdUpdate.setLong(1, saleId);
+                        preparedStatementStockSaleIdUpdate.setString(2, product.get("size"));
+                        preparedStatementStockSaleIdUpdate.setString(3, product.get("color"));
+                        preparedStatementStockSaleIdUpdate.setString(4, product.get("productCode"));
+                        preparedStatementStockSaleIdUpdate.setInt(5, quantity);
+
+                        int affectedRows = preparedStatementStockSaleIdUpdate.executeUpdate();
+
+                        if (affectedRows < quantity) {
+                            throw new SQLException("O estoque não possui a quantidade suficiente de produtos!");
+                        }
+                    }
+                } catch (SQLException e) {
+                    throw e;
+                }
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
             }
 
             connection.commit();
-            return saleIdList;
+
+            return this.findById(saleId);
         } catch (IOException | SQLException e) {
             log.error("[save] - {}", e.getMessage());
 
@@ -68,12 +91,12 @@ public class SaleDalImp implements SaleDal {
     }
 
     @Override
-    public List<Sale> findAll(LocalDateTime startDate, LocalDateTime endDate, int quantity, int page) {
-        String query = "select * from sale join stock join user where sale.id = stock.sale_id and user.id = sale.seller_id and  sa.created_date < ? and sa.created_date > ? limit ? offset ?";
+    public List<Sale> findAll(LocalDate startDate, LocalDate endDate, int quantity, int page) {
+        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.created_date <= ? and sale.created_date >= ? group by sale.id limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setTimestamp(1, new Timestamp(DateConverterUtils.convertToDate(startDate).getTime()));
-            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(endDate).getTime()));
+            preparedStatement.setTimestamp(1, new Timestamp(DateConverterUtils.convertToDate(endDate.atTime(LocalTime.MAX)).getTime()));
+            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(startDate.atTime(LocalTime.MIN)).getTime()));
             preparedStatement.setInt(3, quantity);
             preparedStatement.setInt(4, (page * quantity));
 
@@ -87,7 +110,7 @@ public class SaleDalImp implements SaleDal {
 
     @Override
     public Sale findById(Long id) {
-        String query = "select * from sale join stock join user where sale.id = stock.sale_id and user.id = sale.seller_id and sale.id = ?";
+        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
@@ -106,6 +129,28 @@ public class SaleDalImp implements SaleDal {
             if (e instanceof NotFoundException) {
                 throw new NotFoundException(e.getMessage());
             }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int pageQuantity(int numberOfItemsPerPage, LocalDate startDate, LocalDate endDate) {
+        String query = "select ceiling(count(*) / ?) as pageQuantity from sale where sale.created_date <= ? and sale.created_date >= ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, numberOfItemsPerPage);
+            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(endDate.atTime(LocalTime.MAX)).getTime()));
+            preparedStatement.setTimestamp(3, new Timestamp(DateConverterUtils.convertToDate(startDate.atTime(LocalTime.MIN)).getTime()));
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt("pageQuantity");
+            } catch (SQLException e) {
+                throw e;
+            }
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[pageQuantity] - {}", e.getMessage());
 
             throw new InternalException(e.getMessage());
         }
@@ -132,7 +177,6 @@ public class SaleDalImp implements SaleDal {
             BigDecimal discount = resultSet.getBigDecimal("sale.discount");
 
             Stock stock = StockDalImp.getStockFromResultSet(resultSet);
-            User seller = UserDalImp.getUserFromResultSet(resultSet);
 
             Sale sale = Sale.builder()
                     .createdDate(createdDate)
@@ -142,7 +186,6 @@ public class SaleDalImp implements SaleDal {
                     .formOfPayment(paymentMethod)
                     .discount(discount)
                     .stock(stock)
-                    .seller(seller)
                     .build();
             sales.add(sale);
         }

@@ -25,5 +25,5 @@ public interface UserDal {
 
     void deleteById(Long id);
 
-    int pageQuantity(int quantity, String feature);
+    int pageQuantity(int numberOfItemsPerPage, String feature);
 }

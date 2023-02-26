@@ -36,10 +36,34 @@ public class StockService {
         return this.stockDal.findAll(quantity, page);
     }
 
+    public List<Stock> findAllExcept(List<Map<String, String>> cart, int quantity, int page) {
+        log.info("[findAll] - obtendo {} " + (quantity == 1 ? "produto" : "produtos") + " da página {} exceto {}", quantity, page, cart);
+
+        return this.stockDal.findAllExcept(cart, quantity, page);
+    }
+
+    public List<Stock> findAllOnCart(List<Map<String, String>> cart, int quantity, int page) {
+        log.info("[findAll] - obtendo {} " + (quantity == 1 ? "produto" : "produtos") + " da página {} que correspondam a {}", quantity, page, cart);
+
+        return this.stockDal.findAllOnCart(cart, quantity, page);
+    }
+
     public List<Stock> findBy(Map<String, String> featureMap, int quantity, int page) {
         log.info("[findBy] - procurando {} produtos que tenha algum atribuo que corresponda a '{}' na página {}", quantity, featureMap, page);
 
         return this.stockDal.findBy(featureMap, quantity, page);
+    }
+
+    public List<Stock> findByExcept(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
+        log.info("[findBy] - procurando {} produtos que tenha algum atribuo que corresponda a '{}' na página {} exceto {}", quantity, featureMap, page, cart);
+
+        return this.stockDal.findByExcept(cart, featureMap, quantity, page);
+    }
+
+    public List<Stock> findByOnCart(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
+        log.info("[findBy] - procurando {} produtos que tenha algum atribuo que corresponda a '{}' na página {} que correspondam a {}", quantity, featureMap, page, cart);
+
+        return this.stockDal.findByOnCart(cart, featureMap, quantity, page);
     }
 
     public void deleteBy(int quantity, String size, String color, String productCode) {
@@ -48,17 +72,49 @@ public class StockService {
         this.stockDal.deleteBy(quantity, size, color, productCode);
     }
 
-    public int pageQuantity(int quantity) {
+    public int pageQuantity(int numberOfItemsPerPage) {
         Map<String, String> featureMap = Map.of("name", "");
 
-        return this.pageQuantity(quantity, featureMap);
+        return this.pageQuantity(numberOfItemsPerPage, featureMap);
     }
 
-    public int pageQuantity(int quantity, Map<String, String> featureMap) {
-        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (quantity == 1 ? "item" : "itens cada."), quantity);
+    public int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap) {
+        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (numberOfItemsPerPage == 1 ? "item" : "itens cada."), numberOfItemsPerPage);
 
         try {
-            return this.stockDal.pageQuantity(quantity, featureMap);
+            return this.stockDal.pageQuantity(numberOfItemsPerPage, featureMap);
+        } catch (InternalException e) {
+            return 0;
+        }
+    }
+
+    public int pageQuantityExcept(List<Map<String, String>> cart, int numberOfItemsPerPage) {
+        Map<String, String> featureMap = Map.of("name", "");
+
+        return this.pageQuantityExcept(cart, numberOfItemsPerPage, featureMap);
+    }
+
+    public int pageQuantityExcept(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap) {
+        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (numberOfItemsPerPage == 1 ? "item" : "itens cada, exceto {}"), numberOfItemsPerPage, cart);
+
+        try {
+            return this.stockDal.pageQuantityExcept(cart, numberOfItemsPerPage, featureMap);
+        } catch (InternalException e) {
+            return 0;
+        }
+    }
+
+    public int pageQuantityOnCart(List<Map<String, String>> cart, int numberOfItemsPerPage) {
+        Map<String, String> featureMap = Map.of("name", "");
+
+        return this.pageQuantityOnCart(cart, numberOfItemsPerPage, featureMap);
+    }
+
+    public int pageQuantityOnCart(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap) {
+        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (numberOfItemsPerPage == 1 ? "item" : "itens cada, que corresponda a {}"), numberOfItemsPerPage, cart);
+
+        try {
+            return this.stockDal.pageQuantityOnCart(cart, numberOfItemsPerPage, featureMap);
         } catch (InternalException e) {
             return 0;
         }
