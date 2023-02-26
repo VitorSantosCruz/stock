@@ -404,7 +404,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public void deleteAllByProductCode(String productCode) {
-        String query = "update stock s join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = pi.id and product.product_code = ? and stock.sale_id is null and stock.is_deleted = false";
+        String query = "update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product.product_code = ? and stock.sale_id is null and stock.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, productCode);
@@ -418,7 +418,7 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
-    public int pageQuantity(int quantity, Map<String, String> featureMap) {
+    public int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap) {
         String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id pageQuantity from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
@@ -438,7 +438,7 @@ public class StockDalImp implements StockDal {
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             int i = 0;
-            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, numberOfItemsPerPage);
 
             for (String value : featureMap.values()) {
                 preparedStatement.setString(++i, "%" + value + "%");
@@ -458,7 +458,7 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
-    public int pageQuantityExcept(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap) {
+    public int pageQuantityExcept(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap) {
         String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
@@ -499,7 +499,7 @@ public class StockDalImp implements StockDal {
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             int i = 0;
-            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, numberOfItemsPerPage);
 
             for (String value : featureMap.values()) {
                 preparedStatement.setString(++i, "%" + value + "%");
@@ -526,7 +526,7 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
-    public int pageQuantityOnCart(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap) {
+    public int pageQuantityOnCart(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap) {
         String query = "select ceiling(count(*) / ?) pageQuantity from (select stock.id from stock join product join product_info where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
@@ -567,7 +567,7 @@ public class StockDalImp implements StockDal {
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             int i = 0;
-            preparedStatement.setInt(++i, quantity);
+            preparedStatement.setInt(++i, numberOfItemsPerPage);
 
             for (String value : featureMap.values()) {
                 preparedStatement.setString(++i, "%" + value + "%");

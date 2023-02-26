@@ -35,7 +35,7 @@ public class CartView extends javax.swing.JInternalFrame {
     private int currentPage;
     private boolean isLookingFor;
     private int selectedRow;
-    private final BigDecimal price;
+    private BigDecimal price;
 
     /**
      * Creates new form CartView
@@ -56,7 +56,11 @@ public class CartView extends javax.swing.JInternalFrame {
 
         int pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         this.fillCombobok(pageQuantity);
+        
+        this.setPrice();
+    }
 
+    private void setPrice() {
         this.price = cart.stream()
                 .map(product -> new BigDecimal(product.get("unitPrice")).multiply(new BigDecimal(product.get("quantity"))))
                 .reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
@@ -85,14 +89,10 @@ public class CartView extends javax.swing.JInternalFrame {
                 && featureMap.get("brand") == null) {
             this.isLookingFor = false;
 
-            if (!this.cart.isEmpty()) {
-                pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
-            }
+            pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         } else {
             this.isLookingFor = true;
-            if (!this.cart.isEmpty()) {
-                pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
-            }
+            pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, featureMap);
         }
 
         this.fillCombobok(pageQuantity);
@@ -182,6 +182,8 @@ public class CartView extends javax.swing.JInternalFrame {
             return cartProduct;
         }).filter(cartProduct -> Integer.parseInt(cartProduct.get("quantity")) > 0).collect(Collectors.toCollection(ArrayList::new));
 
+        this.setPrice();
+        
         int pageQuantity;
 
         if (isLookingFor) {

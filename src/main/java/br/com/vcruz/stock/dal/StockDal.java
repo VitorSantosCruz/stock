@@ -30,9 +30,9 @@ public interface StockDal {
 
     void deleteBy(int quantity, String size, String color, String productCode);
 
-    int pageQuantity(int quantity, Map<String, String> featureMap);
+    int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap);
 
-    int pageQuantityExcept(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap);
+    int pageQuantityExcept(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap);
 
-    int pageQuantityOnCart(List<Map<String, String>> cart, int quantity, Map<String, String> featureMap);
+    int pageQuantityOnCart(List<Map<String, String>> cart, int numberOfItemsPerPage, Map<String, String> featureMap);
 }

@@ -63,17 +63,17 @@ public class ProductService {
         this.productDal.deleteById(id);
     }
 
-    public int pageQuantity(int quantity) {
+    public int pageQuantity(int numberOfItemsPerPage) {
         Map<String, String> featureMap = Map.of("name", "");
 
-        return this.pageQuantity(quantity, featureMap);
+        return this.pageQuantity(numberOfItemsPerPage, featureMap);
     }
 
-    public int pageQuantity(int quantity, Map<String, String> featureMap) {
-        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (quantity == 1 ? "item" : "itens cada."), quantity);
+    public int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap) {
+        log.info("[pageQuantity] - obtendo quantidade de págias com {} " + (numberOfItemsPerPage == 1 ? "item" : "itens cada."), numberOfItemsPerPage);
 
         try {
-            return this.productDal.pageQuantity(quantity, featureMap);
+            return this.productDal.pageQuantity(numberOfItemsPerPage, featureMap);
         } catch (InternalException e) {
             return 0;
         }

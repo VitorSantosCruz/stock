@@ -16,7 +16,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -89,14 +91,12 @@ public class SaleDalImp implements SaleDal {
     }
 
     @Override
-    public List<Sale> findAll(LocalDateTime startDate, LocalDateTime endDate,
-            int quantity, int page
-    ) {
-        String query = "select * from sale join stock join user where sale.id = stock.sale_id and user.id = sale.seller_id and  sa.created_date < ? and sa.created_date > ? limit ? offset ?";
+    public List<Sale> findAll(LocalDate startDate, LocalDate endDate, int quantity, int page) {
+        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.created_date <= ? and sale.created_date >= ? group by sale.id limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setTimestamp(1, new Timestamp(DateConverterUtils.convertToDate(startDate).getTime()));
-            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(endDate).getTime()));
+            preparedStatement.setTimestamp(1, new Timestamp(DateConverterUtils.convertToDate(endDate.atTime(LocalTime.MAX)).getTime()));
+            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(startDate.atTime(LocalTime.MIN)).getTime()));
             preparedStatement.setInt(3, quantity);
             preparedStatement.setInt(4, (page * quantity));
 
@@ -109,9 +109,8 @@ public class SaleDalImp implements SaleDal {
     }
 
     @Override
-    public Sale findById(Long id
-    ) {
-        String query = "select *, count(*) stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.id = ?";
+    public Sale findById(Long id) {
+        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.id = ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
@@ -130,6 +129,28 @@ public class SaleDalImp implements SaleDal {
             if (e instanceof NotFoundException) {
                 throw new NotFoundException(e.getMessage());
             }
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int pageQuantity(int numberOfItemsPerPage, LocalDate startDate, LocalDate endDate) {
+        String query = "select ceiling(count(*) / ?) as pageQuantity from sale where sale.created_date <= ? and sale.created_date >= ?";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, numberOfItemsPerPage);
+            preparedStatement.setTimestamp(2, new Timestamp(DateConverterUtils.convertToDate(endDate.atTime(LocalTime.MAX)).getTime()));
+            preparedStatement.setTimestamp(3, new Timestamp(DateConverterUtils.convertToDate(startDate.atTime(LocalTime.MIN)).getTime()));
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt("pageQuantity");
+            } catch (SQLException e) {
+                throw e;
+            }
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[pageQuantity] - {}", e.getMessage());
 
             throw new InternalException(e.getMessage());
         }

@@ -3,6 +3,7 @@ package br.com.vcruz.stock.view;
 import br.com.vcruz.stock.model.User;
 import br.com.vcruz.stock.view.internal.ProductListView;
 import br.com.vcruz.stock.view.internal.ProductRegisterView;
+import br.com.vcruz.stock.view.internal.SaleListView;
 import br.com.vcruz.stock.view.internal.SaleView;
 import br.com.vcruz.stock.view.internal.StockListView;
 import br.com.vcruz.stock.view.internal.UserListView;
@@ -108,6 +109,11 @@ public class DashboardView extends javax.swing.JFrame {
         saleMenu.add(saleMenuItem);
 
         saleListMenuItem.setText("Listagem");
+        saleListMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                saleListMenuItemActionPerformed(evt);
+            }
+        });
         saleMenu.add(saleListMenuItem);
 
         jMenuBar1.add(saleMenu);
@@ -223,6 +229,10 @@ public class DashboardView extends javax.swing.JFrame {
     private void saleMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saleMenuItemActionPerformed
         DashboardView.openInternalFrame(new SaleView());
     }//GEN-LAST:event_saleMenuItemActionPerformed
+
+    private void saleListMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saleListMenuItemActionPerformed
+        DashboardView.openInternalFrame(new SaleListView());
+    }//GEN-LAST:event_saleListMenuItemActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu exitMenu;

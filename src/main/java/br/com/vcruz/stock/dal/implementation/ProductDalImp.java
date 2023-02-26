@@ -81,7 +81,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findAll(int quantity, int page) {
-        String query = "select * from product join user where user.id = product.created_by and product.is_deleted = false limit ? offset ?";
+        String query = "select * from product where product.is_deleted = false limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, quantity);
@@ -97,7 +97,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public List<Product> findBy(Map<String, String> featureMap, int quantity, int page) {
-        String query = "select * from product join user where user.id = product.created_by and (";
+        String query = "select * from product where (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
@@ -131,7 +131,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public Product findById(Long id) {
-        String query = "select * from product join user where user.id = product.created_by and id = ? and product.is_deleted = false";
+        String query = "select * from product where id = ? and product.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
@@ -157,7 +157,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public Product findByCode(String code) {
-        String query = "select * from product join user where user.id = product.created_by and product_code = ? and product.is_deleted = false";
+        String query = "select * from product where product_code = ? and product.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, code);
@@ -207,7 +207,7 @@ public class ProductDalImp implements ProductDal {
     }
 
     @Override
-    public int pageQuantity(int quantity, Map<String, String> featureMap) {
+    public int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap) {
         String query = "select ceiling(count(*) / ?) as pageQuantity from product where (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
@@ -222,7 +222,7 @@ public class ProductDalImp implements ProductDal {
         query += ") and product.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, quantity);
+            preparedStatement.setInt(1, numberOfItemsPerPage);
 
             for (int i = 0; i < featureMap.values().size(); i++) {
                 String value = (String) featureMap.values().toArray()[i];
