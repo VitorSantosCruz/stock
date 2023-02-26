@@ -147,7 +147,7 @@
                 <Column editable="false" title="Data" type="java.lang.String"/>
                 <Column editable="false" title="Pre&#xe7;o" type="java.lang.Double"/>
                 <Column editable="false" title="Forma de pagamento" type="java.lang.String"/>
-                <Column editable="false" title="Desconto" type="java.lang.Double"/>
+                <Column editable="false" title="Desconto %" type="java.lang.Double"/>
               </Table>
             </Property>
             <Property name="toolTipText" type="java.lang.String" value=""/>

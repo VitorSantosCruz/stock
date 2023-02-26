@@ -251,7 +251,7 @@ public class SaleListView extends javax.swing.JInternalFrame {
 
             },
             new String [] {
-                "ID", "Data", "Preço", "Forma de pagamento", "Desconto"
+                "ID", "Data", "Preço", "Forma de pagamento", "Desconto %"
             }
         ) {
             Class[] types = new Class [] {
@@ -342,7 +342,7 @@ public class SaleListView extends javax.swing.JInternalFrame {
         }
 
         List<Sale> saleList = this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
-        BigDecimal totalValue = saleList.stream().map(sale -> sale.getPrice()).reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
+        BigDecimal totalValue = saleList.stream().map(sale -> sale.getPrice().subtract(sale.getDiscount())).reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
         this.priceLabel.setText("Valor total: R$ " + totalValue + "  ");
         this.loadSaleList(this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
     }//GEN-LAST:event_pageComboBoxActionPerformed
