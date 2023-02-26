@@ -11,6 +11,7 @@ import br.com.vcruz.stock.utils.PageableUtils;
 import br.com.vcruz.stock.view.DashboardView;
 import java.awt.event.KeyEvent;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +37,7 @@ public class CartView extends javax.swing.JInternalFrame {
     private boolean isLookingFor;
     private int selectedRow;
     private BigDecimal price;
+    private BigDecimal discount;
 
     /**
      * Creates new form CartView
@@ -51,21 +53,30 @@ public class CartView extends javax.swing.JInternalFrame {
         this.saleService = new SaleService();
         this.cart = cart;
         this.selectedRow = -1;
+        this.discount = BigDecimal.ZERO;
 
         initComponents();
 
         int pageQuantity = this.stockService.pageQuantityOnCart(cart, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE);
         this.fillCombobok(pageQuantity);
-        
+
         this.setPrice();
     }
 
     private void setPrice() {
         this.price = cart.stream()
                 .map(product -> new BigDecimal(product.get("unitPrice")).multiply(new BigDecimal(product.get("quantity"))))
-                .reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
+                .reduce((accumulator, combiner) -> accumulator.add(combiner))
+                .orElse(BigDecimal.ZERO);
 
-        this.priceLabel.setText("Valor total: R$ " + this.price + "  ");
+        BigDecimal discountPrice = this.price.subtract(this.price.multiply(this.discount.divide(new BigDecimal("100")))).setScale(2, RoundingMode.HALF_UP);
+
+        this.priceLabel.setText("Valor total: R$ " + discountPrice + "  ");
+    }
+
+    private void setDiscount() {
+        this.discount = new BigDecimal(this.discountTextField.getText().isBlank() ? "0" : this.discountTextField.getText());
+        this.setPrice();
     }
 
     private void fillCombobok(int pageQuantity) {
@@ -183,7 +194,7 @@ public class CartView extends javax.swing.JInternalFrame {
         }).filter(cartProduct -> Integer.parseInt(cartProduct.get("quantity")) > 0).collect(Collectors.toCollection(ArrayList::new));
 
         this.setPrice();
-        
+
         int pageQuantity;
 
         if (isLookingFor) {
@@ -249,11 +260,25 @@ public class CartView extends javax.swing.JInternalFrame {
         String paymentMethod = choicesMap.get(choice);
 
         try {
-            this.saleService.save(cart, this.price, PaymentMethod.valueOf(paymentMethod), BigDecimal.ZERO, DashboardView.loggedUser.getId());
+            this.saleService.save(cart, this.price, PaymentMethod.valueOf(paymentMethod), this.discount, DashboardView.loggedUser.getId());
 
             DashboardView.openInternalFrame(new SaleView());
         } catch (InternalException e) {
             JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível finalizar a venda!", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void processDiscountInput(KeyEvent evt) {
+        switch (evt.getKeyChar()) {
+            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
+
+                if (!(this.discountTextField.getText() + String.valueOf(evt.getKeyChar())).isBlank() && Integer.parseInt(this.discountTextField.getText() + String.valueOf(evt.getKeyChar())) > 100) {
+                    evt.consume();
+                }
+                break;
+            }
+            default ->
+                evt.consume();
         }
     }
 
@@ -286,6 +311,10 @@ public class CartView extends javax.swing.JInternalFrame {
         pageComboBox = new javax.swing.JComboBox<>();
         saleAndPricePanel = new javax.swing.JPanel();
         pricePanel = new javax.swing.JPanel();
+        discountPanel = new javax.swing.JPanel();
+        discountTextField = new javax.swing.JTextField();
+        discountLabel = new javax.swing.JLabel();
+        percentLabel = new javax.swing.JLabel();
         priceLabel = new javax.swing.JLabel();
         salePanel = new javax.swing.JPanel();
         deleteButton = new javax.swing.JButton();
@@ -484,13 +513,39 @@ public class CartView extends javax.swing.JInternalFrame {
 
         pricePanel.setLayout(new java.awt.BorderLayout());
 
+        discountPanel.setLayout(new java.awt.BorderLayout());
+
+        discountTextField.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                discountTextFieldFocusLost(evt);
+            }
+        });
+        discountTextField.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                discountTextFieldKeyPressed(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                discountTextFieldKeyTyped(evt);
+            }
+        });
+        discountPanel.add(discountTextField, java.awt.BorderLayout.CENTER);
+
+        discountLabel.setText("Desconto   ");
+        discountPanel.add(discountLabel, java.awt.BorderLayout.LINE_START);
+
+        percentLabel.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        percentLabel.setText("%");
+        discountPanel.add(percentLabel, java.awt.BorderLayout.LINE_END);
+
+        pricePanel.add(discountPanel, java.awt.BorderLayout.PAGE_START);
+
         priceLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         priceLabel.setText("Valor total: R$ 0  ");
         pricePanel.add(priceLabel, java.awt.BorderLayout.CENTER);
 
         saleAndPricePanel.add(pricePanel, java.awt.BorderLayout.PAGE_START);
 
-        salePanel.setLayout(new java.awt.GridLayout());
+        salePanel.setLayout(new java.awt.GridLayout(1, 0));
 
         deleteButton.setText("Apagar");
         deleteButton.setEnabled(false);
@@ -627,6 +682,20 @@ public class CartView extends javax.swing.JInternalFrame {
         this.delete();
     }//GEN-LAST:event_deleteButtonActionPerformed
 
+    private void discountTextFieldKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_discountTextFieldKeyTyped
+        this.processDiscountInput(evt);
+    }//GEN-LAST:event_discountTextFieldKeyTyped
+
+    private void discountTextFieldFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_discountTextFieldFocusLost
+        this.setDiscount();
+    }//GEN-LAST:event_discountTextFieldFocusLost
+
+    private void discountTextFieldKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_discountTextFieldKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            this.setDiscount();
+        }
+    }//GEN-LAST:event_discountTextFieldKeyPressed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel brandLabel;
@@ -636,11 +705,15 @@ public class CartView extends javax.swing.JInternalFrame {
     private javax.swing.JLabel colorLabel;
     private javax.swing.JTextField colorTextField;
     private javax.swing.JButton deleteButton;
+    private javax.swing.JLabel discountLabel;
+    private javax.swing.JPanel discountPanel;
+    private javax.swing.JTextField discountTextField;
     private javax.swing.JLabel modelLabel;
     private javax.swing.JTextField modelTextField;
     private javax.swing.JLabel nameLabel;
     private javax.swing.JTextField nameTextField;
     private javax.swing.JComboBox<String> pageComboBox;
+    private javax.swing.JLabel percentLabel;
     private javax.swing.JLabel priceLabel;
     private javax.swing.JPanel pricePanel;
     private javax.swing.JPanel saleAndPricePanel;
