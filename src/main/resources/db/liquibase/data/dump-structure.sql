@@ -80,4 +80,4 @@ create table if not exists stock(
 );
 
 -- Insere dados na tabela "user"
-insert into user (id, name, login, password, is_root) values (1, "Administraor", "admin", "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec", true);
+insert into user (id, name, login, password, is_root) values (1, "Administraor", "admin", "adf0379edd37ed40b6fb7e05acaca0790bd229fc2141d59f95d2fc27bd499f03e0ca506f76122e8f5b1236f808ce127819f639e76cdc1cf01db64715c5100d34", true);
