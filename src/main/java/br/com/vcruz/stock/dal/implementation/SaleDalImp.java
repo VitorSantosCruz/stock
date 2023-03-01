@@ -34,8 +34,16 @@ public class SaleDalImp implements SaleDal {
     @Override
     public Sale save(List<Map<String, String>> cart, BigDecimal price, PaymentMethod formOfPayment, BigDecimal discount, Long createdBy) {
         String querySale = "insert into sale (price, form_of_payment, discount, seller_id) values (?, ?, ?, ?)";
-        String queryStockSaleIdUpdate = "update stock join product join product_info set stock.last_modified_date = now(), stock.sale_id = ? where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?";
-
+        String queryStockSaleIdUpdate = """
+            update stock join product join product_info set stock.last_modified_date = now(), stock.sale_id = ? where
+                stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
+                    stock.id in (select id from (
+                            select stock.id from stock join product join product_info where 
+                            stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
+                            product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?
+                    ) temporary_table);
+        """;
+        
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatementSale = connection.prepareStatement(querySale, Statement.RETURN_GENERATED_KEYS)) {
             Long saleId;
             connection.setAutoCommit(false);
