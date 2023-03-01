@@ -45,7 +45,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>${exec.mainClass}</mainClass>
+                            <mainClass>br.com.vcruz.stock.Stock</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

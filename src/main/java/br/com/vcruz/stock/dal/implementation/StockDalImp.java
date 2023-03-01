@@ -386,8 +386,15 @@ public class StockDalImp implements StockDal {
 
     @Override
     public void deleteBy(int quantity, String size, String color, String productCode) {
-        String query = "update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?";
-
+        String query = """
+            update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where
+                stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
+                    stock.id in (select id from (
+                            select stock.id from stock join product join product_info where 
+                            stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
+                            product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?
+                    ) temporary_table);
+        """;
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, size);
             preparedStatement.setString(2, color);
