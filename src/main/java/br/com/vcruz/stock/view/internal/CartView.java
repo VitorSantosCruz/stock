@@ -208,6 +208,10 @@ public class CartView extends javax.swing.JInternalFrame {
         if (this.cart.isEmpty()) {
             DashboardView.openInternalFrame(new SaleView());
         }
+        
+        if (pageQuantity == 0) {
+            this.loadStockList(new ArrayList<>());
+        }
 
         this.fillCombobok(pageQuantity);
     }
