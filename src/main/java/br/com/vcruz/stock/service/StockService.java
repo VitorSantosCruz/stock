@@ -48,6 +48,12 @@ public class StockService {
         return this.stockDal.findAllOnCart(cart, quantity, page);
     }
 
+    public List<Stock> findAllBySaleId(Long saleId) {
+        log.info("[findAll] - obtendo todos os estoques relativos a venda {}", saleId);
+
+        return this.stockDal.findAllBySaleId(saleId);
+    }
+
     public List<Stock> findBy(Map<String, String> featureMap, int quantity, int page) {
         log.info("[findBy] - procurando {} produtos que tenha algum atribuo que corresponda a '{}' na página {}", quantity, featureMap, page);
 

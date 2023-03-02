@@ -17,14 +17,14 @@ public interface StockDal {
     List<Stock> findAllExcept(List<Map<String, String>> cart, int quantity, int page);
 
     List<Stock> findAllOnCart(List<Map<String, String>> cart, int quantity, int page);
+    
+    List<Stock> findAllBySaleId(Long saleId);
 
     List<Stock> findBy(Map<String, String> featureMap, int quantity, int page);
 
     List<Stock> findByExcept(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page);
 
     List<Stock> findByOnCart(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page);
-
-    Stock findById(Long id);
 
     void deleteAllByProductCode(String productCode);
 
