@@ -5,8 +5,6 @@ import br.com.vcruz.stock.dal.ProductInfoDal;
 import br.com.vcruz.stock.dal.StockDal;
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
-import br.com.vcruz.stock.model.Product;
-import br.com.vcruz.stock.model.ProductInfo;
 import br.com.vcruz.stock.model.Stock;
 import br.com.vcruz.stock.utils.DateConverterUtils;
 import java.io.IOException;
@@ -71,7 +69,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public List<Stock> findAll(int quantity, int page) {
-        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and stock.sale_id is null and stock.is_deleted = false group by product.id, product_info.size, product_info.color limit ? offset ?";
+        String query = "select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.sale_id is null and stock.is_deleted = false group by product.id, product_info.size, product_info.color limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, quantity);
@@ -88,7 +86,7 @@ public class StockDalImp implements StockDal {
     @Override
     public List<Stock> findAllExcept(List<Map<String, String>> cart, int quantity, int page) {
         String query = """
-                       select *, count(*) stockQuantity from stock join product join product_info 
+                       select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale
                             where product.id = stock.product_id and product_info.id = stock.product_info_id and stock.is_deleted = false and stock.sale_id is null and
                             stock.id not in (select id from (
                        """;
@@ -141,7 +139,7 @@ public class StockDalImp implements StockDal {
     @Override
     public List<Stock> findAllOnCart(List<Map<String, String>> cart, int quantity, int page) {
         String query = """
-                       select *, count(*) stockQuantity from stock join product join product_info 
+                       select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale
                             where product.id = stock.product_id and product_info.id = stock.product_info_id and stock.is_deleted = false and stock.sale_id is null and
                             stock.id in (select id from (
                        """;
@@ -192,8 +190,23 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
+    public List<Stock> findAllBySaleId(Long saleId) {
+        String query = "select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.sale_id = ? and stock.is_deleted = false group by product.id, product_info.size, product_info.color";
+
+        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setLong(1, saleId);
+
+            return this.getResult(preparedStatement);
+        } catch (NotFoundException | IOException | SQLException e) {
+            log.error("[findAllBySaleId] - {}", e.getMessage());
+
+            throw new InternalException(e.getMessage());
+        }
+    }
+
+    @Override
     public List<Stock> findBy(Map<String, String> featureMap, int quantity, int page) {
-        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
+        String query = "select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale where stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
@@ -230,7 +243,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public List<Stock> findByExcept(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
-        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
+        String query = "select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale where stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
@@ -295,7 +308,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public List<Stock> findByOnCart(List<Map<String, String>> cart, Map<String, String> featureMap, int quantity, int page) {
-        String query = "select *, count(*) stockQuantity from stock join product join product_info join user where stock.product_id = product.id and stock.product_info_id = product_info.id and stock.created_by = user.id and (";
+        String query = "select *, count(distinct stock.id) stockQuantity from stock join product join product_info join sale where stock.product_id = product.id and stock.product_info_id = product_info.id and (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];
@@ -359,32 +372,6 @@ public class StockDalImp implements StockDal {
     }
 
     @Override
-    public Stock findById(Long id) {
-        String query = "select * from stock where id = ? and sale_id is null and is_deleted = false";
-
-        try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setLong(1, id);
-
-            List<Stock> stockList = this.getResult(preparedStatement);
-
-            if (stockList.isEmpty()) {
-                String errorMessage = "Esse produto não existe no estoque!";
-                throw new NotFoundException(errorMessage);
-            }
-
-            return stockList.get(0);
-        } catch (NotFoundException | IOException | SQLException e) {
-            log.error("[findById] - {}", e.getMessage());
-
-            if (e instanceof NotFoundException) {
-                throw new NotFoundException(e.getMessage());
-            }
-
-            throw new InternalException(e.getMessage());
-        }
-    }
-
-    @Override
     public void deleteBy(int quantity, String size, String color, String productCode) {
         String query = """
             update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where
@@ -393,7 +380,7 @@ public class StockDalImp implements StockDal {
                             select stock.id from stock join product join product_info where 
                             stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
                             product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?
-                    ) temporary_table);
+                    ) temporary_table)
         """;
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, size);
@@ -411,7 +398,7 @@ public class StockDalImp implements StockDal {
 
     @Override
     public void deleteAllByProductCode(String productCode) {
-        String query = "update stock join product join product_info set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and product.product_code = ? and stock.sale_id is null and stock.is_deleted = false";
+        String query = "update stock join product set stock.last_modified_date = now(), stock.is_deleted = true where stock.sale_id is null and stock.product_id = product.id and product.product_code = ? and stock.is_deleted = false";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setString(1, productCode);
@@ -605,7 +592,13 @@ public class StockDalImp implements StockDal {
             List<Stock> stocks = new ArrayList<>();
 
             while (resultSet.next()) {
-                stocks.add(StockDalImp.getStockFromResultSet(resultSet));
+                Stock stock = StockDalImp.getStockFromResultSet(resultSet);
+
+                stock.setProduct(ProductDalImp.getProductFromResultSet(resultSet));
+                stock.setProductInfo(ProductInfoDalImp.getProductInfoFromResultSet(resultSet));
+                stock.setSale(SaleDalImp.getSaleFromResultSet(resultSet));
+
+                stocks.add(stock);
             }
 
             return stocks;
@@ -621,16 +614,11 @@ public class StockDalImp implements StockDal {
         boolean isDeleted = resultSet.getBoolean("stock.is_deleted");
         int quantity = resultSet.getInt("stockQuantity");
 
-        Product product = ProductDalImp.getProductFromResultSet(resultSet);
-        ProductInfo productInfo = ProductInfoDalImp.getProductInfoFromResultSet(resultSet);
-
         return Stock.builder()
                 .createdDate(createdDate)
                 .lastModifiedDate(lastModifiedDate)
                 .id(id)
                 .isDeleted(isDeleted)
-                .product(product)
-                .productInfo(productInfo)
                 .quantity(quantity)
                 .build();
     }

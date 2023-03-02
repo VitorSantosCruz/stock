@@ -1,14 +1,23 @@
 package br.com.vcruz.stock.view.internal;
 
+import br.com.vcruz.stock.model.Product;
+import br.com.vcruz.stock.model.ProductInfo;
 import br.com.vcruz.stock.model.Sale;
+import br.com.vcruz.stock.model.Stock;
 import br.com.vcruz.stock.service.SaleService;
 import br.com.vcruz.stock.utils.PageableUtils;
 import java.awt.event.KeyEvent;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
+import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -17,20 +26,24 @@ import javax.swing.table.DefaultTableModel;
  */
 public class SaleListView extends javax.swing.JInternalFrame {
 
+    private final int ID_COLUMN_POSITION;
     private final SaleService saleService;
     private int currentPage;
     private final DateTimeFormatter formatter;
     private LocalDate currentStartDate;
     private LocalDate currentEndDate;
+    private final Map<Long, Sale> saleMap;
 
     /**
      * Creates new form SaleListView
      */
     public SaleListView() {
+        this.ID_COLUMN_POSITION = 0;
         this.saleService = new SaleService();
         this.formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         this.currentStartDate = LocalDate.now().minusWeeks(1);
         this.currentEndDate = LocalDate.now();
+        this.saleMap = new HashMap<>();
 
         initComponents();
 
@@ -54,7 +67,8 @@ public class SaleListView extends javax.swing.JInternalFrame {
         this.fillCombobok(pageQuantity);
 
         if (pageQuantity == 0) {
-            this.clearTable();
+            this.clearTable(this.saleTable);
+            this.clearTable(this.productsSoldTable);
         }
     }
 
@@ -67,7 +81,7 @@ public class SaleListView extends javax.swing.JInternalFrame {
     }
 
     private void fillSaleTable(List<Sale> sales) {
-        this.clearTable();
+        this.clearTable(this.saleTable);
 
         DefaultTableModel defaultTableModel = (DefaultTableModel) this.saleTable.getModel();
 
@@ -76,8 +90,29 @@ public class SaleListView extends javax.swing.JInternalFrame {
         });
     }
 
-    private void clearTable() {
-        DefaultTableModel defaultTableModel = (DefaultTableModel) this.saleTable.getModel();
+    private void loadProductsSoldList(List<Stock> stocks) {
+        try {
+            this.fillProductsSoldTable(stocks);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "[Erro interno] - Não foi possível carregar os produtos dessa venda!", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void fillProductsSoldTable(List<Stock> stocks) {
+        this.clearTable(this.productsSoldTable);
+
+        DefaultTableModel defaultTableModel = (DefaultTableModel) this.productsSoldTable.getModel();
+
+        stocks.forEach(stock -> {
+            Product product = stock.getProduct();
+            ProductInfo productInfo = stock.getProductInfo();
+
+            defaultTableModel.addRow(new Object[]{stock.getId(), product.getCode(), productInfo.getSize(), productInfo.getColor(), product.getName(), product.getModel(), product.getBrand(), product.getPrice(), stock.getQuantity()});
+        });
+    }
+
+    private void clearTable(JTable table) {
+        DefaultTableModel defaultTableModel = (DefaultTableModel) table.getModel();
         defaultTableModel.setRowCount(0);
     }
 
@@ -158,8 +193,11 @@ public class SaleListView extends javax.swing.JInternalFrame {
         filterButton = new javax.swing.JButton();
         startDateFormattedTextField = new javax.swing.JFormattedTextField();
         endDateFormattedTextField = new javax.swing.JFormattedTextField();
+        jPanel1 = new javax.swing.JPanel();
         saleScrollPane = new javax.swing.JScrollPane();
         saleTable = new javax.swing.JTable();
+        productsSoldScrollPane = new javax.swing.JScrollPane();
+        productsSoldTable = new javax.swing.JTable();
         utilsPanel = new javax.swing.JPanel();
         pageComboBox = new javax.swing.JComboBox<>();
         priceLabel = new javax.swing.JLabel();
@@ -246,6 +284,8 @@ public class SaleListView extends javax.swing.JInternalFrame {
 
         getContentPane().add(searchPanel, java.awt.BorderLayout.PAGE_START);
 
+        jPanel1.setLayout(new java.awt.GridLayout(2, 0));
+
         saleTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
 
@@ -270,9 +310,13 @@ public class SaleListView extends javax.swing.JInternalFrame {
             }
         });
         saleTable.setToolTipText("");
-        saleTable.setRowSelectionAllowed(false);
         saleTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         saleTable.getTableHeader().setReorderingAllowed(false);
+        saleTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                saleTableMouseReleased(evt);
+            }
+        });
         saleScrollPane.setViewportView(saleTable);
         if (saleTable.getColumnModel().getColumnCount() > 0) {
             saleTable.getColumnModel().getColumn(0).setResizable(false);
@@ -282,7 +326,39 @@ public class SaleListView extends javax.swing.JInternalFrame {
             saleTable.getColumnModel().getColumn(4).setResizable(false);
         }
 
-        getContentPane().add(saleScrollPane, java.awt.BorderLayout.CENTER);
+        jPanel1.add(saleScrollPane);
+
+        productsSoldTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "ID", "Código", "Tamanho", "Cor", "Nome", "Modelo", "Marca", "Preço", "Quantidade"
+            }
+        ) {
+            Class[] types = new Class [] {
+                java.lang.Long.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.Double.class, java.lang.Integer.class
+            };
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false, false, false, false
+            };
+
+            public Class getColumnClass(int columnIndex) {
+                return types [columnIndex];
+            }
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        productsSoldTable.setToolTipText("");
+        productsSoldTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        productsSoldTable.getTableHeader().setReorderingAllowed(false);
+        productsSoldScrollPane.setViewportView(productsSoldTable);
+
+        jPanel1.add(productsSoldScrollPane);
+
+        getContentPane().add(jPanel1, java.awt.BorderLayout.CENTER);
 
         utilsPanel.setLayout(new java.awt.BorderLayout());
 
@@ -341,19 +417,47 @@ public class SaleListView extends javax.swing.JInternalFrame {
             this.currentPage = Integer.parseInt(String.valueOf(this.pageComboBox.getSelectedItem())) - 1;
         }
 
-        List<Sale> saleList = this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAX_OF_REGISTERS_IN_A_PAGE, PageableUtils.FIRST_PAGE);
-        BigDecimal totalValue = saleList.stream().map(sale -> sale.getPrice().subtract(sale.getDiscount())).reduce((accumulator, combiner) -> accumulator.add(combiner)).orElse(BigDecimal.ZERO);
+        List<Sale> saleList = this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAXIMUM_NUMBER_OF_RECORDS_THAT_CAN_BE_RETRIEVED_FROM_THE_DATABASE, PageableUtils.FIRST_PAGE);
+        BigDecimal totalValue = saleList.stream()
+                .map(sale
+                        -> sale.getPrice()
+                        .subtract(sale.getPrice()
+                                .multiply(sale.getDiscount()
+                                        .divide(new BigDecimal("100")))))
+                .reduce((accumulator, combiner) -> accumulator.add(combiner))
+                .orElse(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+
         this.priceLabel.setText("Valor total: R$ " + totalValue + "  ");
-        this.loadSaleList(this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage));
+        List<Sale> sales = this.saleService.findAll(this.currentStartDate, this.currentEndDate, PageableUtils.MAX_QUANTITY_OF_ITENS_IN_THE_PAGE, this.currentPage);
+        Map<Long, List<Sale>> saleMapColect = sales.stream()
+                .collect(Collectors.groupingBy(sale -> sale.getId()));
+
+        saleMapColect.keySet().stream().forEach(key -> {
+            this.saleMap.put(key, saleMapColect.get(key).get(0));
+        });
+
+        this.loadProductsSoldList(new ArrayList<>());
+        this.loadSaleList(sales);
     }//GEN-LAST:event_pageComboBoxActionPerformed
+
+    private void saleTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_saleTableMouseReleased
+        int selectedRow = this.saleTable.getSelectedRow();
+
+        Long saleId = (Long) this.saleTable.getValueAt(selectedRow, this.ID_COLUMN_POSITION);
+
+        this.loadProductsSoldList(this.saleMap.get(saleId).getStocks());
+    }//GEN-LAST:event_saleTableMouseReleased
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JFormattedTextField endDateFormattedTextField;
     private javax.swing.JLabel endDateLabel;
     private javax.swing.JButton filterButton;
+    private javax.swing.JPanel jPanel1;
     private javax.swing.JComboBox<String> pageComboBox;
     private javax.swing.JLabel priceLabel;
+    private javax.swing.JScrollPane productsSoldScrollPane;
+    private javax.swing.JTable productsSoldTable;
     private javax.swing.JScrollPane saleScrollPane;
     private javax.swing.JTable saleTable;
     private javax.swing.JPanel searchPanel;

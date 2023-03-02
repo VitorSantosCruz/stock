@@ -51,6 +51,10 @@ public class LoginDalImp implements LoginDal {
                 throw new LoginException("Usuário e/ou senha inválidos!");
             }
 
+            if (user.getLoginAttempCont() > 0) {
+                this.resetCountLoginError(user);
+            }
+
             return user;
         } catch (NotFoundException | LoginException | BlockedUserException | InternalException e) {
             log.error("[login] - {}", e.getMessage());

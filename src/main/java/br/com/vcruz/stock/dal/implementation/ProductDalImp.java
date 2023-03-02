@@ -208,7 +208,7 @@ public class ProductDalImp implements ProductDal {
 
     @Override
     public int pageQuantity(int numberOfItemsPerPage, Map<String, String> featureMap) {
-        String query = "select ceiling(count(*) / ?) as pageQuantity from product where (";
+        String query = "select ceiling(count(distinct product.id) / ?) as pageQuantity from product where (";
 
         for (int i = 0; i < featureMap.keySet().size(); i++) {
             String key = (String) featureMap.keySet().toArray()[i];

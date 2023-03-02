@@ -6,7 +6,6 @@ import br.com.vcruz.stock.enumerator.PaymentMethod;
 import br.com.vcruz.stock.exception.InternalException;
 import br.com.vcruz.stock.exception.NotFoundException;
 import br.com.vcruz.stock.model.Sale;
-import br.com.vcruz.stock.model.Stock;
 import br.com.vcruz.stock.utils.DateConverterUtils;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -22,6 +21,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -41,9 +41,9 @@ public class SaleDalImp implements SaleDal {
                             select stock.id from stock join product join product_info where 
                             stock.sale_id is null and stock.product_id = product.id and stock.product_info_id = product_info.id and
                             product_info.size = ? and product_info.color = ? and product.product_code = ? and stock.is_deleted = false limit ?
-                    ) temporary_table);
+                    ) temporary_table)
         """;
-        
+
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatementSale = connection.prepareStatement(querySale, Statement.RETURN_GENERATED_KEYS)) {
             Long saleId;
             connection.setAutoCommit(false);
@@ -100,7 +100,7 @@ public class SaleDalImp implements SaleDal {
 
     @Override
     public List<Sale> findAll(LocalDate startDate, LocalDate endDate, int quantity, int page) {
-        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.created_date <= ? and sale.created_date >= ? group by sale.id limit ? offset ?";
+        String query = "select *, count(stock.id) stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.created_date <= ? and sale.created_date >= ? group by sale.id limit ? offset ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setTimestamp(1, new Timestamp(DateConverterUtils.convertToDate(endDate.atTime(LocalTime.MAX)).getTime()));
@@ -118,7 +118,7 @@ public class SaleDalImp implements SaleDal {
 
     @Override
     public Sale findById(Long id) {
-        String query = "select *, 0 stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.id = ?";
+        String query = "select *, count(stock.id) stockQuantity from sale join stock join product join product_info where sale.id = stock.sale_id and product.id = stock.product_id and product_info.id = stock.product_info_id and sale.id = ? group by sale.id";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setLong(1, id);
@@ -144,7 +144,7 @@ public class SaleDalImp implements SaleDal {
 
     @Override
     public int pageQuantity(int numberOfItemsPerPage, LocalDate startDate, LocalDate endDate) {
-        String query = "select ceiling(count(*) / ?) as pageQuantity from sale where sale.created_date <= ? and sale.created_date >= ?";
+        String query = "select ceiling(count(sale.id) / ?) as pageQuantity from sale where sale.created_date <= ? and sale.created_date >= ?";
 
         try (Connection connection = ConnectionConfig.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, numberOfItemsPerPage);
@@ -167,37 +167,39 @@ public class SaleDalImp implements SaleDal {
     private List<Sale> getResult(PreparedStatement preparedStatement) throws SQLException {
 
         try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            return SaleDalImp.getSalesFromResultSet(resultSet, preparedStatement);
+            List<Sale> sales = new ArrayList<>();
+
+            while (resultSet.next()) {
+                sales.add(SaleDalImp.getSaleFromResultSet(resultSet));
+            }
+
+            Map<Long, List<Sale>> saleMap = sales.stream().collect(Collectors.groupingBy(sale -> sale.getId()));
+
+            sales = saleMap.keySet().stream()
+                    .map(key -> saleMap.get(key).get(0))
+                    .collect(Collectors.toCollection(ArrayList::new));
+
+            return sales;
         } catch (SQLException e) {
             throw e;
         }
     }
 
-    public static List<Sale> getSalesFromResultSet(ResultSet resultSet, PreparedStatement preparedStatement) throws SQLException {
-        List<Sale> sales = new ArrayList<>();
+    public static Sale getSaleFromResultSet(ResultSet resultSet) throws SQLException {
+        LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("sale.created_Date"));
+        LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("sale.last_modified_date"));
+        Long id = resultSet.getLong("sale.id");
+        BigDecimal price = resultSet.getBigDecimal("sale.price");
+        PaymentMethod paymentMethod = PaymentMethod.valueOf(resultSet.getString("sale.form_of_payment"));
+        BigDecimal discount = resultSet.getBigDecimal("sale.discount");
 
-        while (resultSet.next()) {
-            LocalDateTime createdDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("sale.created_Date"));
-            LocalDateTime lastModifiedDate = DateConverterUtils.convertToLocalDateTime(resultSet.getTimestamp("sale.last_modified_date"));
-            Long id = resultSet.getLong("sale.id");
-            BigDecimal price = resultSet.getBigDecimal("sale.price");
-            PaymentMethod paymentMethod = PaymentMethod.valueOf(resultSet.getString("sale.form_of_payment"));
-            BigDecimal discount = resultSet.getBigDecimal("sale.discount");
-
-            Stock stock = StockDalImp.getStockFromResultSet(resultSet);
-
-            Sale sale = Sale.builder()
-                    .createdDate(createdDate)
-                    .lastModifiedDate(lastModifiedDate)
-                    .id(id)
-                    .price(price)
-                    .formOfPayment(paymentMethod)
-                    .discount(discount)
-                    .stock(stock)
-                    .build();
-            sales.add(sale);
-        }
-
-        return sales;
+        return Sale.builder()
+                .createdDate(createdDate)
+                .lastModifiedDate(lastModifiedDate)
+                .id(id)
+                .price(price)
+                .formOfPayment(paymentMethod)
+                .discount(discount)
+                .build();
     }
 }
